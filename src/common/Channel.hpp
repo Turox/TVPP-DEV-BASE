@@ -39,7 +39,7 @@ class Channel
 		PeerData& GetPeerData(Peer* peer);
         time_t GetCreationTime();
 
-        vector<PeerData*> SelectPeerList(Strategy* strategy, Peer* srcPeer, unsigned int peerQuantity);
+        vector<PeerData*> SelectPeerList(Strategy* strategy, Peer* srcPeer, unsigned int peerQuantity, bool virtualPeer);
         unsigned int GetPeerListSize();
         void CheckActivePeers();
         void PrintPeerList();

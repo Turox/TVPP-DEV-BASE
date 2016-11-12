@@ -3,8 +3,9 @@
 using namespace std;
 
 /** Construtor **/
-Bootstrap::Bootstrap(string udpPort, string peerlistSelectorStrategy) 
+Bootstrap::Bootstrap(string udpPort, string peerlistSelectorStrategy, unsigned int peerListSharedSize)
 {
+	this->peerListSharedSize = peerListSharedSize;
     if (peerlistSelectorStrategy == "TournamentStrategy")
         this->peerlistSelectorStrategy = new TournamentStrategy();
     else if (peerlistSelectorStrategy == "NearestIPStrategy")
@@ -90,7 +91,9 @@ Message *Bootstrap::HandleChannelMessage(MessageChannel* message, string sourceA
 
         if (!messageReply)
         {
-            vector<PeerData*> selectedPeers = channelList[channelId].SelectPeerList(peerlistSelectorStrategy, source, 20);
+            vector<PeerData*> selectedPeers = channelList[channelId].SelectPeerList(peerlistSelectorStrategy,
+            		                                                                source, peerListSharedSize,
+																					XPConfig::Instance()->GetBool("isolaVirtutalPeerSameIP"));
 
             time_t nowtime;
             time(&nowtime);

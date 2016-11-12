@@ -51,7 +51,7 @@ class Bootstrap
         * @param string 
         * @param int Max TTL value
         */
-        Bootstrap(string udpPort, string peerlistSelectorStrategy);
+        Bootstrap(string udpPort, string peerlistSelectorStrategy, unsigned int peerListSharedSize);
         void TCPStart(const char *);
         void UDPStart();
         void UDPReceive();
@@ -60,6 +60,7 @@ class Bootstrap
         void ShowPeerList();
         void HTTPLog();
         void InicializaDados();
+
 
     private:
         vector<bool> RandomlySelectPartners(int num_peer, int num_draft);
@@ -72,6 +73,7 @@ class Bootstrap
         map<unsigned int, Channel> channelList;
         BootstrapTCPServer *tcpServer;
         UDPServer *udp;
+        unsigned int peerListSharedSize;
 
         boost::mutex channelListMutex;
         FILE *pfile;

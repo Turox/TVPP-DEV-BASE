@@ -25,11 +25,35 @@ int main(int argc, char* argv[]) {
     string myTCPPort = TCPPORT;
     string myUDPPort = UDPPORT;
     string peerlistSelectorStrategy = "";
+    unsigned int peerListSharedSize = 20;
+
+    string arg1 = "";
+    if( argv[1] != NULL)
+    	arg1 = argv[1];
+
+    if(arg1 == "--help")
+    {
+        cout << "\nUsage: ./bootstrap [OPTIONS]" <<endl;
+        cout <<"\nMain operation mode:"<<endl;
+        cout <<"\n";
+        cout <<"  -tcpPort                     define the tcp bootstrap port (default: "<<myTCPPort<<")"<<endl;
+        cout <<"  -udpPort                     define the tcp bootstrap port (default: "<<myUDPPort<<")"<<endl;
+        cout <<"  -peerlistSelectorStrategy    define the tcp bootstrap port (default: RandomStrategy)"<<endl;
+        cout <<"  -peerListSharedSize          define the peer quantity to be shared each time between bootstrap and peer ()(default: "<<peerListSharedSize<<")"<<endl;
+
+        cout <<endl;
+        cout <<"  --isolaVirtutalPeerSameIP    permit only different IP partner "<<endl;
+        exit(1);
+    }
+
+    XPConfig::Instance()->OpenConfigFile("");
+    XPConfig::Instance()->SetBool("isolaVirtutalPeerSameIP", false);
 
     int optind=1;
     // decode arguments
     while ((optind < argc) && (argv[optind][0]=='-')) {
         string swtc = argv[optind];
+
         if (swtc=="-tcpPort") {
             optind++;
             myTCPPort = argv[optind];
@@ -43,7 +67,17 @@ int main(int argc, char* argv[]) {
             optind++;
             peerlistSelectorStrategy = argv[optind];
         }
-        else {
+        else if (swtc=="--isolaVirtutalPeerSameIP")
+        {
+            XPConfig::Instance()->SetBool("isolaVirtutalPeerSameIP", true);
+        }
+        else if (swtc=="-peerListSharedSize")
+        {
+            optind++;
+            peerListSharedSize = atoi(argv[optind]);
+        }
+        else
+        {
             cout << "Invalid Arguments"<<endl; 
             exit(1);
         }
@@ -51,7 +85,7 @@ int main(int argc, char* argv[]) {
     }
 
     XPConfig::Instance()->OpenConfigFile("");
-    Bootstrap bootstrapInstance(myUDPPort, peerlistSelectorStrategy);
+    Bootstrap bootstrapInstance(myUDPPort, peerlistSelectorStrategy, peerListSharedSize);
     
     boost::thread TTCPSERVER(boost::bind(&Bootstrap::TCPStart, &bootstrapInstance, myTCPPort.c_str()));
     boost::thread TUDPSERVER(boost::bind(&Bootstrap::UDPStart, &bootstrapInstance));

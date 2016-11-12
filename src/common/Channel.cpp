@@ -93,14 +93,18 @@ time_t Channel::GetCreationTime()
     return creationTime;
 }
 
-vector<PeerData*> Channel::SelectPeerList(Strategy* strategy, Peer* srcPeer, unsigned int peerQuantity)
+vector<PeerData*> Channel::SelectPeerList(Strategy* strategy, Peer* srcPeer, unsigned int peerQuantity, bool virtualPeer)
 {
     vector<PeerData*> allPeers, selectedPeers;
     
     for (map<string, PeerData>::iterator i = peerList.begin(); i != peerList.end(); i++)
-        if (srcPeer->GetID() != i->second.GetPeer()->GetID())
-            allPeers.push_back(&(i->second));
-
+        if (srcPeer->GetID() != i->second.GetPeer()->GetID()){
+        	if (!virtualPeer)
+        		allPeers.push_back(&(i->second));
+            else
+            	if (srcPeer->GetIP() != i->second.GetPeer()->GetIP())
+            		allPeers.push_back(&(i->second));
+        }
     if (peerList.size() <= peerQuantity)
         return allPeers;
     else
