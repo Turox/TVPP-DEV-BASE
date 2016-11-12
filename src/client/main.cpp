@@ -45,14 +45,8 @@ void terminate (int param)
  */
 int main (int argc, char* argv[])
 {
-    /*void (*prev_fn)(int);//TODO CONCERTAR O SIGNAL TREATMENT
 
-    prev_fn = signal (SIGTERM,terminate);
-    if (prev_fn==SIG_IGN) signal (SIGTERM,SIG_IGN);
-    prev_fn = signal (SIGINT,terminate);
-    if (prev_fn==SIG_IGN) signal (SIGINT,SIG_IGN);*/
-
-    char *ip = argv[1];
+	char *ip = argv[1];
     string tcpPort = BOOTSTRAP_TCP_PORT;
     string udpPort = BOOTSTRAP_UDP_PORT;
     unsigned int idChannel = 0;
@@ -60,17 +54,28 @@ int main (int argc, char* argv[])
     string streamingPort = STANDARD_EXHIBITION_PORT;
     PeerModes mode = MODE_CLIENT;
     int bufferSize = BUFFER_SIZE;
-    int maxPartners = MAX_PEER_ATIVO;
+    int maxPartnersIn = MAX_PEER_ATIVO;
+    int maxPartnersOut = MAX_PEER_ATIVO;
     int windowOfInterest = JANELA;
     int requestLimit = NUM_PEDIDOS;
-    int ttl = TTL_MAX;
+    int ttlIn = TTL_MAX;
+    int ttlOut = TTL_MAX;
     int maxRequestAttempt = 3;
     int tipOffsetTime = 3;
     int limitDownload = -1;
     int limitUpload = -1;
-	string disconnectorStrategy = "None";
+
+
+    string disconnectorStrategy = "None";
 	string connectorStrategy = "Random";
-    string chunkSchedulerStrategy = "Random";
+
+    int maxPartnersOutFREE = 0;
+	unsigned int timeToRemovePeerOutWorseBand = 0;                  //Time interval to remove worse peer band if a good new peer ask for connection
+	unsigned int minimalBandwidthToBeMyIN     = 0;                  // minimal new partner size OUT to try connecting IN
+	unsigned int outLimitToSeparateFree       = 1;                  // insert peer in PeerListOutFREE if peer Out <= outLimitToSeparateFree and maxPartnersOutFREE > 0
+
+
+	string chunkSchedulerStrategy = "Random";
     string messageSendScheduler = "FIFO";
     string messageReceiveScheduler = "FIFO";
     int optind=2;
@@ -83,30 +88,52 @@ int main (int argc, char* argv[])
             cout << "\nUsage: ./client [BOOTSTRAP IP] [OPTIONS]" <<endl;
             cout <<"\nMain operation mode:"<<endl;
             cout <<"\n";
-            cout <<"  -bufferSize                   define the buffermap message size (default: "<<bufferSize<<" )"<<endl;
-            cout <<"  -channelId                    select a channel to transmit/receive (default: "<<idChannel<<" )"<<endl;
-			cout <<"  -disconnectorStrategy         select a strategy for peer disconnection (default: "<<disconnectorStrategy<<" )"<<endl;
+            cout <<"  -bufferSize                   define the buffermap message size (default: "<<bufferSize<<")"<<endl;
+            cout <<"  -channelId                    select a channel to transmit/receive (default: "<<idChannel<<")"<<endl;
+			cout <<"  -disconnectorStrategy         select a strategy for peer disconnection (default: "<<disconnectorStrategy<<")"<<endl;
             cout <<"                                (Options: None, Random)"<<endl;
-			cout <<"  -connectorStrategy            select a strategy for peer connection (default: "<<connectorStrategy<<" )"<<endl;
+			cout <<"  -connectorStrategy            select a strategy for peer connection (default: "<<connectorStrategy<<")"<<endl;
             cout <<"                                (Options: Random)"<<endl;
-            cout <<"  -chunkSchedulerStrategy       select a strategy for chunk scheduling (default: "<<chunkSchedulerStrategy<<" )"<<endl;
+
+            //
+            cout <<"  -minimalOUTtoBeMyIN           minimal partner's peersizeOut to ask for new partner IN (default: "<<minimalBandwidthToBeMyIN<<")"<<endl;
+            cout <<"                                 **(if chosen, it sets automatically connectorStrategy = RandomWhitoutPoor)"<<endl;
+            cout <<"  -minimalOUTFREEtoBeMyIN       minimal partner's peersizeOut_FREE to ask for new partner IN (default: "<<minimalBandwidthToBeMyIN<<")"<<endl;
+            cout <<"                                 **(if chosen, it sets automatically connectorStrategy = RandomWhitoutPoorFREE)"<<endl;
+            cout <<"                                   (find the partner only the maxPartnersOutFREE is setted on it)"<<endl;
+            cout <<"  -timeToRemovePeerOutWorseBand time to remove someone and connect a better new peer asking to be partner (default: disabled)"<<endl;
+            cout <<"                                 **(for to able, choose a positive number)"<<endl;
+            cout <<"                                ---"<<endl;
+            //
+
+            cout <<"  -chunkSchedulerStrategy       select a strategy for chunk scheduling (default: "<<chunkSchedulerStrategy<<")"<<endl;
             cout <<"                                (Options: MinimumFaultStrategy, NullStrategy, RandomStrategy)"<<endl;
-            cout <<"  -messageSendScheduler         select a strategy for message reception (default: "<<messageSendScheduler<<" )"<<endl;
+            cout <<"  -messageSendScheduler         select a strategy for message reception (default: "<<messageSendScheduler<<")"<<endl;
             cout <<"                                (Options: FIFO, RR - RoundRobin, Random, CDF - Closest Deadline First)"<<endl;
-            cout <<"  -messageReceiveScheduler      select a strategy for message reception (default: "<<messageReceiveScheduler<<" )"<<endl;
+            cout <<"  -messageReceiveScheduler      select a strategy for message reception (default: "<<messageReceiveScheduler<<")"<<endl;
             cout <<"                                (Options: FIFO, RR - RoundRobin, Random, CDF - Closest Deadline First)"<<endl;
-            cout <<"  -limitDownload                limits the download bandwidht usage in B/s (default: "<<limitDownload<<" )"<<endl;
-            cout <<"  -limitUpload                  limits the upload bandwidht usage in B/s (default: "<<limitUpload<<" )"<<endl;
-            cout <<"  -maxPartners                  maximum number of neighbors(default: "<<maxPartners<<" )"<<endl;
-            cout <<"  -mode                         define if the peer is a client (0) or a server (1) (default: "<<mode<<" )"<<endl;
-            cout <<"  -peerPort                     port for inter peer comunication (default: "<<peerPort<<" )"<<endl;
-            cout <<"  -maxRequestAttempt            maximum number of attempts to perform a request(default: "<<maxRequestAttempt<<" )"<<endl;;
+            cout <<"  -limitDownload                limits the download bandwidht usage in B/s (default: "<<limitDownload<<")"<<endl;
+            cout <<"  -limitUpload                  limits the upload bandwidht usage in B/s (default: "<<limitUpload<<")"<<endl;
+            cout <<"  -maxPartnersIn                maximum number of neighbors-In(default: "<<maxPartnersIn<<")"<<endl;
+            cout <<"  -maxPartnersOut               maximum number of neighbors-Out(default: "<<maxPartnersOut<<")"<<endl;
+
+            //
+            cout <<"  -maxPartnersOutFREE           maximum number of neighbors-Out in special list Free (default: "<<maxPartnersOutFREE<<")"<<endl;
+            cout <<"                                 *(if not setted worse peer is inserted in a conventional peerListOut) "<<endl;
+            cout <<"  -outLimitToSeparateFree       maximum peer out to be insert in peerListOutFree (default: "<<outLimitToSeparateFree<<")"<<endl;
+            //
+
+            cout <<"  -mode                         define the type of client. (default: "<<mode<<")"<<endl;
+            cout <<"                                (Options: client (0); server (1); free-rider-good (2) *[free-rider-bad -limitUpload 0])"<<endl;
+            cout <<"  -peerPort                     port for inter peer comunication (default: "<<peerPort<<")"<<endl;
+            cout <<"  -maxRequestAttempt            maximum number of attempts to perform a request(default: "<<maxRequestAttempt<<")"<<endl;;
             cout <<"  -tipOffsetTime                amount of seconds from where to start requesting chunks prior to stream tip (default: "<<tipOffsetTime<<" )"<<endl;;
-            //cout <<"  -requestLimit               define the amount of chunks that can be simultaneously asked (default: "<<requestLimit<<" )"<<endl;
-            cout <<"  -streamingPort                port used by media stream (mode-dependent) (default: "<<streamingPort<<" )"<<endl;
-            cout <<"  -tcpPort                      bootstrap tcp port (default: "<<tcpPort<<" )"<<endl;
-            cout <<"  -ttl                          partnership time to live (default: "<<ttl<<" )"<<endl;
-            cout <<"  -udpPort                      bootstrap udp port (default: "<<udpPort<<" )"<<endl;
+            cout <<"  -requestLimit                 define the amount of chunks that can be simultaneously asked (default: "<<requestLimit<<" )"<<endl;
+            cout <<"  -streamingPort                port used by media stream (mode-dependent) (default: "<<streamingPort<<")"<<endl;
+            cout <<"  -tcpPort                      bootstrap tcp port (default: "<<tcpPort<<")"<<endl;
+            cout <<"  -ttlIn                        partnership time to live list In (default: "<<ttlIn<<")"<<endl;
+            cout <<"  -ttlOut                       partnership time to live list Out (default: "<<ttlOut<<")"<<endl;
+            cout <<"  -udpPort                      bootstrap udp port (default: "<<udpPort<<")"<<endl;
             cout <<"\n"<<endl;
             cout <<"  --playerDisabled              disables stream dispatch to player"<<endl;
             cout <<"  --blockFreeriders             blocks requests to freeriders"<<endl;
@@ -122,6 +149,10 @@ int main (int argc, char* argv[])
     }
 
     XPConfig::Instance()->OpenConfigFile("");
+    XPConfig::Instance()->SetBool("configurarBootID", true);
+    XPConfig::Instance()->SetBool("removeWorsePartner",false);
+    XPConfig::Instance()->SetBool("separatedFreeOutList",false);
+
     
     // decode arguments
     while ((optind < argc) && (argv[optind][0]=='-'))
@@ -163,11 +194,17 @@ int main (int argc, char* argv[])
             optind++;
             mode = (PeerModes)atoi(argv[optind]);
         }
-        else if (swtc=="-maxPartners")
+        else if (swtc=="-maxPartnersIn")
         {
             optind++;
-            maxPartners = atoi(argv[optind]);
+            maxPartnersIn = atoi(argv[optind]);
         }
+        else if (swtc=="-maxPartnersOut")
+        {
+            optind++;
+            maxPartnersOut = atoi(argv[optind]);
+        }
+
         else if (swtc=="-windowOfInterest")
         {
             optind++;
@@ -178,10 +215,15 @@ int main (int argc, char* argv[])
             optind++;
             requestLimit = atoi(argv[optind]);
         }
-        else if (swtc=="-ttl")
+        else if (swtc=="-ttlIn")
         {
             optind++;
-            ttl = atoi(argv[optind]);
+            ttlIn = atoi(argv[optind]);
+        }
+        else if (swtc=="-ttlOut")
+        {
+            optind++;
+            ttlOut = atoi(argv[optind]);
         }
         else if (swtc=="-maxRequestAttempt")
         {
@@ -201,8 +243,8 @@ int main (int argc, char* argv[])
         else if (swtc=="-limitUpload")
         {
             optind++;
-            limitUpload = atoi(argv[optind]);
-        }
+           	limitUpload = atoi(argv[optind]);
+         }
 		else if (swtc=="-disconnectorStrategy")
         {
             optind++;
@@ -228,6 +270,39 @@ int main (int argc, char* argv[])
             optind++;
             messageReceiveScheduler = argv[optind];
         }
+        //
+		else if (swtc=="-timeToRemovePeerOutWorseBand")
+        {
+            optind++;
+            timeToRemovePeerOutWorseBand = atoi(argv[optind]);
+            XPConfig::Instance()->SetBool("removeWorsePartner", true);
+        }
+		else if (swtc=="-minimalOUTtoBeMyIN")
+        {
+            optind++;
+            minimalBandwidthToBeMyIN = atoi(argv[optind]);
+            connectorStrategy = "RandomWhitoutPoor";
+        }
+		else if (swtc=="-minimalOUTFREEtoBeMyIN")
+        {
+            optind++;
+            minimalBandwidthToBeMyIN = atoi(argv[optind]);
+            connectorStrategy = "RandomWhitoutPoorFREE";
+        }
+        else if (swtc=="-outLimitToSeparateFree")
+        {
+            optind++;
+            outLimitToSeparateFree = atoi(argv[optind]);
+        }
+        else if (swtc=="-maxPartnersOutFREE")
+        {
+            optind++;
+            maxPartnersOutFREE = atoi(argv[optind]);
+            if (maxPartnersOutFREE >= 0)
+               XPConfig::Instance()->SetBool("separatedFreeOutList", true);
+
+        }
+
         else if (swtc=="--playerDisabled")
         {
             XPConfig::Instance()->SetBool("playerEnabled", false);
@@ -254,10 +329,14 @@ int main (int argc, char* argv[])
 
     clientInstance.ClientInit(ip, tcpPort, udpPort, idChannel, 
                                 peerPort, streamingPort, mode, bufferSize, 
-                                maxPartners, windowOfInterest, requestLimit, ttl, maxRequestAttempt, tipOffsetTime, limitDownload, limitUpload, 
+                                maxPartnersIn, maxPartnersOut, windowOfInterest, requestLimit, ttlIn, ttlOut, maxRequestAttempt, tipOffsetTime, limitDownload, limitUpload,
                                 disconnectorStrategy, connectorStrategy, chunkSchedulerStrategy, 
-                                messageSendScheduler, messageReceiveScheduler);
-    
+                                messageSendScheduler, messageReceiveScheduler,
+					            maxPartnersOutFREE,
+					            outLimitToSeparateFree,
+					            minimalBandwidthToBeMyIN,
+					            timeToRemovePeerOutWorseBand);
+
     boost::thread TPING(boost::bind(&Client::Ping, &clientInstance));
     boost::thread TUDPSTART(boost::bind(&Client::UDPStart, &clientInstance));
     boost::thread TUDPRECEIVE(boost::bind(&Client::UDPReceive, &clientInstance));
@@ -267,7 +346,7 @@ int main (int argc, char* argv[])
     {
         boost::thread TGERAR(boost::bind(&Client::GerarDados, &clientInstance));
     }    
-    else //MODE_CLIENT, MODE_FREERIDER, MODE_SUPERNODE
+    else //MODE_CLIENT, MODE_FREERIDER_GOOD, MODE_SUPERNODE
     {
         boost::thread TCONSOME(boost::bind(&Client::ConsomeMedia,&clientInstance));
         boost::thread TPEDIR(boost::bind(&Client::MontarListaPedidos,&clientInstance));

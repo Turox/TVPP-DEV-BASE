@@ -49,9 +49,9 @@ class Bootstrap
     public:
         /**
         * @param string 
-        * @param int Max TTL value
+        * @param int Max TTLChannel value
         */
-        Bootstrap(string udpPort, string peerlistSelectorStrategy, unsigned int peerListSharedSize);
+        Bootstrap(string udpPort, string peerlistSelectorStrategy, unsigned int peerListSharedSize, uint8_t minimumBandwidth, uint8_t minimumBandwidth_FREE);
         void TCPStart(const char *);
         void UDPStart();
         void UDPReceive();
@@ -60,7 +60,6 @@ class Bootstrap
         void ShowPeerList();
         void HTTPLog();
         void InicializaDados();
-
 
     private:
         vector<bool> RandomlySelectPartners(int num_peer, int num_draft);
@@ -74,11 +73,14 @@ class Bootstrap
         BootstrapTCPServer *tcpServer;
         UDPServer *udp;
         unsigned int peerListSharedSize;
+        unsigned int minimumBandwidth;
+        unsigned int minimumBandwidth_FREE;
 
         boost::mutex channelListMutex;
         FILE *pfile;
         Strategy* peerlistSelectorStrategy;
-        friend class BootstrapTCPServer;    
+        friend class BootstrapTCPServer;
+        uint32_t bootStrap_ID;    // para os clientes autenticarem o bootstrap
 };
 
 #endif // BOOTSTRAP_H_INCLUDED

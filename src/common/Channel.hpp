@@ -39,10 +39,12 @@ class Channel
 		PeerData& GetPeerData(Peer* peer);
         time_t GetCreationTime();
 
-        vector<PeerData*> SelectPeerList(Strategy* strategy, Peer* srcPeer, unsigned int peerQuantity, bool virtualPeer);
+        vector<PeerData*> SelectPeerList(Strategy* strategy, Peer* srcPeer, unsigned int peerQuantity, bool virtualPeer,
+        		                         uint8_t minimumBandwidth, uint8_t minimumBandwidth_FREE, bool separatedFreeOutList);
         unsigned int GetPeerListSize();
         void CheckActivePeers();
         void PrintPeerList();
+        void printChannelProfile();
 
         FILE* GetPerformanceFile();
         FILE* GetOverlayFile();

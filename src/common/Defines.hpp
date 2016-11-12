@@ -5,21 +5,24 @@
 
 #define MTU 1500
 #define STD_BUFFERSIZE 1600
-#define TTL 10
+//ECM
+#define TTLIn 10
+#define TTLOut 10
+#define TTLChannel 10
 
 #define SECONDS 1000000000
 
 //Message Header Sizes
 #define MESSAGE_HEADER_SIZE                      6
-#define MESSAGE_CHANNEL_HEADER_SIZE             20
+#define MESSAGE_CHANNEL_HEADER_SIZE             24
 #define MESSAGE_REQUEST_HEADER_SIZE             18
 #define MESSAGE_ERROR_HEADER_SIZE                8
 #define MESSAGE_PEERLIST_HEADER_SIZE            10
-#define MESSAGE_PEERLIST_SHARE_HEADER_SIZE      38
+#define MESSAGE_PEERLIST_SHARE_HEADER_SIZE      42
 #define MESSAGE_PEERLIST_LOG_HEADER_SIZE        18
-#define MESSAGE_PING_HEADER_SIZE                14
-#define MESSAGE_PING_BOOT_HEADER_SIZE           22
-#define MESSAGE_PING_BOOT_PERF_HEADER_SIZE      94
+#define MESSAGE_PING_HEADER_SIZE                18
+#define MESSAGE_PING_BOOT_HEADER_SIZE           26
+#define MESSAGE_PING_BOOT_PERF_HEADER_SIZE     102
 #define MESSAGE_DATA_HEADER_SIZE                22
 
 //Client Operation Modes
@@ -27,7 +30,7 @@ enum PeerModes
 {
     MODE_CLIENT            = 0x00,          // Modo Client
     MODE_SERVER            = 0x01,          // Modo Server
-    MODE_FREERIDER         = 0x02,          // Modo Freerider
+    MODE_FREERIDER_GOOD    = 0x02,          // Modo Freerider Good
     MODE_FULLCHUNKMAP      = 0x03,          // Modo Anunciando FULL ChunkMap
     MODE_SUPERNODE         = 0x04,          // Modo Supernode
 };
@@ -57,7 +60,8 @@ enum PingTypes
     PING_BOOT           = 0x01,     // PING TO BOOTSTRAP
     PING_BOOT_PERF      = 0x02,     // PING TO BOOTSTRAP WITH PERFORMANCE INFORMATION
     PING_PART_PERF      = 0x03,     // PING TO PARTNER WITH PERFORMANCE INFORMATION
-    PING_PART_CHUNKMAP  = 0x04      // PING TO PARTNER WITH CHUNK MAP
+    PING_PART_CHUNKMAP  = 0x04,     // PING TO PARTNER WITH CHUNK MAP
+    PING_LIVE_OUT       = 0x05,     // PING TO PARTNER INFORMING THAT LIVE PEER-OUT
 };
 
 //PEERLIST MESSAGES FLAGS

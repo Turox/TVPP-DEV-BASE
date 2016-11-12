@@ -4,40 +4,66 @@ using namespace std;
 
 /** 
  *Metodo construtor
- * Recebe o TTL padrão (Tempo de vida na lista de peers caso o o cliente pare de se comunicar com o servidor)
  * ID que o o endereço IP do peer
+ * ECM - Inclusao do ttlIn e ttlOut
  */
-PeerData::PeerData(Peer* peer, int ttl, int size) : chunkMap(size)
+PeerData::PeerData(Peer* peer, int ttlIn, int ttlOut, int ttlChannel, int size) : chunkMap(size)
 {
-	this->ttl = ttl;
+	//ECM
+	this->ttlIn = ttlIn;
+	this->ttlOut = ttlOut;
+	this->ttlChannel = ttlChannel;
     this->peer = peer;
     uploadScore = 0;
     mode = MODE_CLIENT;
     pendingRequests = 0;
     delay = 0;
 }
-
-int PeerData::GetTTL()
+/** Retorna o TTL*****************/
+int PeerData::GetTTLIn()
 {
-    return ttl;
+    return ttlIn;
+}
+int PeerData::GetTTLOut()
+{
+    return ttlOut;
+}
+int PeerData::GetTTLChannel()
+{
+    return ttlChannel;
 }
 
+/** Altera o TTL*****************/
+void PeerData::SetTTLIn(int ttlIn)
+{
+	this->ttlIn = ttlIn;
+}
+void PeerData::SetTTLOut(int ttlOut)
+{
+	this->ttlOut = ttlOut;
+}
+void PeerData::SetTTLChannel(int ttlChannel)
+{
+	this->ttlChannel = ttlChannel;
+}
+
+/** Decrementa o TTL em 1*********/
+void PeerData::DecTTLIn()
+{
+    ttlIn--;
+}
+void PeerData::DecTTLOut()
+{
+    ttlOut--;
+}
+void PeerData::DecTTLChannel()
+{
+    ttlChannel--;
+}
 /** Retorna o ID*/
 Peer* PeerData::GetPeer()
 {
     return peer;
-}
-
-/** Altera o TTL*/
-void PeerData::SetTTL(int ttl)
-{
-	this->ttl = ttl;
-}
-
-/** Decrementa o TTL em 1*/
-void PeerData::DecTTL()
-{
-    ttl--;
 }
 
 /** Altera o Modo do Peer */
@@ -119,3 +145,25 @@ std::ostream& operator<<(std::ostream& os, const PeerData& pd)
     os << pd.chunkMap; 
     return os;
 }
+
+int PeerData::GetSizePeerListOutInformed ()
+{
+   return this->GetPeer()->GetSizePeerListOutInformed();
+}
+
+int PeerData::GetSizePeerListOutInformed_FREE ()
+{
+   return this->GetPeer()->GetSizePeerListOutInformed_FREE();
+}
+
+
+void PeerData::SetSizePeerListOutInformed(int sizePeerListOutInformed)
+{
+	this->GetPeer()->SetSizePeerListOutInformed(sizePeerListOutInformed);
+}
+
+void PeerData::SetSizePeerListOutInformed_FREE(int sizePeerListOutInformed_FREE)
+{
+	this->GetPeer()->SetSizePeerListOutInformed_FREE(sizePeerListOutInformed_FREE);
+}
+

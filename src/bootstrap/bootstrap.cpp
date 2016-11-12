@@ -3,9 +3,8 @@
 using namespace std;
 
 /** Construtor **/
-Bootstrap::Bootstrap(string udpPort, string peerlistSelectorStrategy, unsigned int peerListSharedSize)
+Bootstrap::Bootstrap(string udpPort, string peerlistSelectorStrategy, unsigned int peerListSharedSize, uint8_t minimumBandwidth, uint8_t minimumBandwidth_FREE)
 {
-	this->peerListSharedSize = peerListSharedSize;
     if (peerlistSelectorStrategy == "TournamentStrategy")
         this->peerlistSelectorStrategy = new TournamentStrategy();
     else if (peerlistSelectorStrategy == "NearestIPStrategy")
@@ -14,10 +13,18 @@ Bootstrap::Bootstrap(string udpPort, string peerlistSelectorStrategy, unsigned i
         this->peerlistSelectorStrategy = new RandomStrategy();
 
     srand (time(NULL));
+    this->peerListSharedSize=peerListSharedSize;
+    this->minimumBandwidth = minimumBandwidth;
+    this->minimumBandwidth_FREE = minimumBandwidth_FREE;
 
     udp = new UDPServer(boost::lexical_cast<uint32_t>(udpPort),0,NULL,new FIFOMessageScheduler());
 
     cout <<"Starting Bootstrap Version["<<VERSION<<"]" <<endl;
+
+    time_t boot_ID;
+	time(&boot_ID);
+	this->bootStrap_ID = boot_ID;
+
 }
 
 Message *Bootstrap::HandleTCPMessage(Message* message, string sourceAddress, uint32_t socket)
@@ -38,8 +45,8 @@ Message *Bootstrap::HandleTCPMessage(Message* message, string sourceAddress, uin
 
 Message *Bootstrap::HandleChannelMessage(MessageChannel* message, string sourceAddress)
 {
-    Peer* source = new Peer(sourceAddress);
 
+	cout<<"handle"<<endl;
     vector<int> channelHeader = message->GetHeaderValues();
     uint8_t channelFlag = channelHeader[0];
     bool performingPunch = channelHeader[1];
@@ -47,6 +54,11 @@ Message *Bootstrap::HandleChannelMessage(MessageChannel* message, string sourceA
     uint16_t externalPort = channelHeader[3];
     uint32_t channelId = channelHeader[4];
     uint32_t clientTime = channelHeader[5];
+	uint16_t sizePeerListOut = channelHeader[6];
+	uint16_t sizePeerListOut_FREE = channelHeader[7];
+
+	Peer* source = new Peer(sourceAddress, sizePeerListOut, sizePeerListOut_FREE);
+
 
     cout<<"Channel MSG: "<<(uint32_t)channelFlag<<", "<<performingPunch<<", "<<version<<", "<<externalPort<<", "<<channelId<<endl;
     if (!performingPunch)
@@ -58,6 +70,7 @@ Message *Bootstrap::HandleChannelMessage(MessageChannel* message, string sourceA
         boost::mutex::scoped_lock channelListLock(channelListMutex);
         switch (channelFlag)
         {
+        cout<<"cheguei aqui"<<endl;
         case CHANNEL_CREATE:
             if (channelList.find(channelId) == channelList.end())
             {
@@ -91,15 +104,15 @@ Message *Bootstrap::HandleChannelMessage(MessageChannel* message, string sourceA
 
         if (!messageReply)
         {
-            vector<PeerData*> selectedPeers = channelList[channelId].SelectPeerList(peerlistSelectorStrategy,
-            		                                                                source, peerListSharedSize,
-																					XPConfig::Instance()->GetBool("isolaVirtutalPeerSameIP"));
+            vector<PeerData*> selectedPeers = channelList[channelId].SelectPeerList(peerlistSelectorStrategy, source, peerListSharedSize,
+            		                                                                XPConfig::Instance()->GetBool("isolaVirtutalPeerSameIP"),minimumBandwidth,
+																					minimumBandwidth_FREE, XPConfig::Instance()->GetBool("separatedFreeOutList"));
 
             time_t nowtime;
             time(&nowtime);
             messageReply = new MessagePeerlistShare(selectedPeers.size(), source->GetIP(), externalPort, 
                 channelList[channelId].GetServerNewestChunkID(), channelList[channelId].GetServerEstimatedStreamRate(), 
-                channelList[channelId].GetCreationTime(), nowtime, clientTime);
+                channelList[channelId].GetCreationTime(), nowtime, clientTime, this->bootStrap_ID);
             /**
             * Varre a lista de peers canditados, separando cada campo por um caracter de seperação    
             * caso esse campo for ultimo campo a ser enviado insere um caracter que sinaliza o fim da mensagem
@@ -209,16 +222,20 @@ void Bootstrap::HandlePingMessage(MessagePingBoot* message, string sourceAddress
     uint8_t pingType = pingHeader[0];
     PeerModes peerMode = (PeerModes)pingHeader[1];
     ChunkUniqueID peerTipChunk = ChunkUniqueID(pingHeader[2],(uint16_t)pingHeader[3]);
-    int serverStreamRate = pingHeader[4];
-    uint32_t channelId = pingHeader[5];
+
+    int serverStreamRate = pingHeader[6];
+    uint32_t channelId = pingHeader[7];
+    unsigned short totalPeer = 0;
 
     boost::mutex::scoped_lock channelListLock(channelListMutex);
     if (channelList.count(channelId) != 0) //Channel exists
     {
         if (channelList[channelId].HasPeer(srcPeer))
         {
+        	totalPeer = channelList[channelId].GetPeerListSize()-1; //subtrai um para excluir o servidor
             channelList[channelId].GetPeerData(srcPeer).SetMode(peerMode);
-            channelList[channelId].GetPeerData(srcPeer).SetTTL(TTL);
+            //ECM alteracao no TTL para TTLChannel que agora e usado no channel
+            channelList[channelId].GetPeerData(srcPeer).SetTTLChannel(TTLChannel);
 
             //If ping from server
             if (*(srcPeer) == *(channelList[channelId].GetServer())) 
@@ -233,36 +250,45 @@ void Bootstrap::HandlePingMessage(MessagePingBoot* message, string sourceAddress
             //If it has performance measures
             if (pingType == PING_BOOT_PERF)
             {
-                uint8_t indexPerfStart = 6;
+                uint8_t indexPerfStart = 8;
                 MessagePingBootPerf* messageWrapper = new MessagePingBootPerf(message);
                 pingHeader = messageWrapper->GetHeaderValues();
 
                 time_t rawtime;
                 time(&rawtime);
-                string performanceLog = sourceAddress + " ";                            //PeerID
+                string performanceLog = sourceAddress + " ";                                                //PeerID
                 performanceLog += boost::lexical_cast<string>(pingHeader[indexPerfStart + 0]) + " ";        //ChunkGenerated
                 performanceLog += boost::lexical_cast<string>(pingHeader[indexPerfStart + 1]) + " ";        //ChunkSent
                 performanceLog += boost::lexical_cast<string>(pingHeader[indexPerfStart + 2]) + " ";        //ChunkReceived
                 performanceLog += boost::lexical_cast<string>(pingHeader[indexPerfStart + 3]) + " ";        //ChunkOverload
                 performanceLog += boost::lexical_cast<string>(pingHeader[indexPerfStart + 4]) + " ";        //RequestSent
-                performanceLog += boost::lexical_cast<string>(pingHeader[indexPerfStart + 5]) + " ";       //RequestRecv
-                performanceLog += boost::lexical_cast<string>(pingHeader[indexPerfStart + 6]) + " ";       //RequestRetries
-                performanceLog += boost::lexical_cast<string>(pingHeader[indexPerfStart + 7]) + " ";       //ChunkMissed
-                performanceLog += boost::lexical_cast<string>(pingHeader[indexPerfStart + 8]) + " ";       //ChunkExpected
+                performanceLog += boost::lexical_cast<string>(pingHeader[indexPerfStart + 5]) + " ";        //RequestRecv
+                performanceLog += boost::lexical_cast<string>(pingHeader[indexPerfStart + 6]) + " ";        //RequestRetries
+                performanceLog += boost::lexical_cast<string>(pingHeader[indexPerfStart + 7]) + " ";        //ChunkMissed
+                performanceLog += boost::lexical_cast<string>(pingHeader[indexPerfStart + 8]) + " ";        //ChunkExpected
                 performanceLog += boost::lexical_cast<string>(
-                    (float)*reinterpret_cast<float*>(&pingHeader[indexPerfStart + 9])) + " ";    //MeanHop
+                    (float)*reinterpret_cast<float*>(&pingHeader[indexPerfStart + 9])) + " ";               //MeanHop
                 performanceLog += boost::lexical_cast<string>(
-                    (float)*reinterpret_cast<float*>(&pingHeader[indexPerfStart + 10])) + " ";    //MeanTries
+                    (float)*reinterpret_cast<float*>(&pingHeader[indexPerfStart + 10])) + " ";              //MeanTries
                 performanceLog += boost::lexical_cast<string>(
-                    (float)*reinterpret_cast<float*>(&pingHeader[indexPerfStart + 11])) + " ";    //MeanTriesPerRequest
-                performanceLog += boost::lexical_cast<string>(pingHeader[indexPerfStart + 12]) + " ";     //NeighborhoodSize
-                performanceLog += boost::lexical_cast<string>(pingHeader[indexPerfStart + 13]) + " ";    //SampleChunk.Cycle
-                performanceLog += boost::lexical_cast<string>(pingHeader[indexPerfStart + 14]) + " ";    //SampleChunk.Position
-                performanceLog += boost::lexical_cast<string>(pingHeader[indexPerfStart + 15]) + " ";    //SampleChunk.HopCount
-                performanceLog += boost::lexical_cast<string>(pingHeader[indexPerfStart + 16]) + " ";    //SampleChunk.TriesCount
-                performanceLog += boost::lexical_cast<string>(pingHeader[indexPerfStart + 17]) + " ";    //SampleChunk.Time
-                performanceLog += boost::lexical_cast<string>(pingHeader[indexPerfStart + 18]) + " ";    //MsgTime
-                performanceLog += boost::lexical_cast<string>(rawtime) + "\n";            //NowTime
+                    (float)*reinterpret_cast<float*>(&pingHeader[indexPerfStart + 11])) + " ";              //MeanTriesPerRequest
+                performanceLog += boost::lexical_cast<string>(pingHeader[indexPerfStart + 12]) + " ";    //SampleChunk.Cycle
+                performanceLog += boost::lexical_cast<string>(pingHeader[indexPerfStart + 13]) + " ";    //SampleChunk.Position
+                performanceLog += boost::lexical_cast<string>(pingHeader[indexPerfStart + 14]) + " ";    //SampleChunk.HopCount
+                performanceLog += boost::lexical_cast<string>(pingHeader[indexPerfStart + 15]) + " ";    //SampleChunk.TriesCount
+                performanceLog += boost::lexical_cast<string>(pingHeader[indexPerfStart + 16]) + " ";    //SampleChunk.Time
+                performanceLog += boost::lexical_cast<string>(pingHeader[indexPerfStart + 17]) + " ";    //MsgTime
+                performanceLog += boost::lexical_cast<string>(rawtime) + " ";                            //NowTime
+				performanceLog += boost::lexical_cast<string>(pingHeader[indexPerfStart + 18]) + " ";    //ECM  NeighborhoodSizeIn
+				performanceLog += boost::lexical_cast<string>(pingHeader[indexPerfStart + 19]) + " ";    //ECM  NeighborhoodSizeOUT
+				performanceLog += boost::lexical_cast<string>(pingHeader[indexPerfStart + 20]) + " ";    //ECM  NeighborhoodSizeOUT_FREE
+
+
+				performanceLog += boost::lexical_cast<string>(pingHeader[4]) + " ";                       //ECM maxPeerListOut
+				performanceLog += boost::lexical_cast<string>(pingHeader[5]) + " ";                       //ECM maxPeerListOut_FREE
+				performanceLog += boost::lexical_cast<string>(totalPeer) + "\n";                          // Total pares
+
+
                 if (performanceFile)
                 {
                     fwrite(performanceLog.c_str(), 1, performanceLog.size(), performanceFile);
@@ -292,7 +318,7 @@ void Bootstrap::HandlePingMessage(MessagePingBoot* message, string sourceAddress
     }
 }
 
-/** Verifica se algum peer da lista está inativo (TTL <= 0) caso esteja, removo esse peer */
+/** Verifica se algum peer da lista está inativo (TTLChannel <= 0) caso esteja, removo esse peer */
 void Bootstrap::CheckPeerList() 
 {
     boost::xtime xt;

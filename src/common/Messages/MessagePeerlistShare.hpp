@@ -15,8 +15,10 @@ class MessagePeerlistShare : public MessagePeerlist
 {
     public:
 	    MessagePeerlistShare(Message* message) : MessagePeerlist(message) {};
-	    MessagePeerlistShare(uint16_t qtdPeers, string externalIp, uint16_t externalPort, ChunkUniqueID serverTipChunkUId, uint32_t serverStreamRate, uint32_t channelCreationTime, uint32_t nowTime, uint32_t clientTime);
-        vector<int> GetHeaderValuesDataVector(uint16_t qtdPeers, string externalIp, uint16_t externalPort, ChunkUniqueID serverTipChunkUId, uint32_t serverStreamRate, uint32_t channelCreationTime, uint32_t nowTime, uint32_t clientTime);
+	    MessagePeerlistShare(uint16_t qtdPeers, string externalIp, uint16_t externalPort, ChunkUniqueID serverTipChunkUId,
+	    		uint32_t serverStreamRate, uint32_t channelCreationTime, uint32_t nowTime, uint32_t clientTime, uint32_t bootID);
+        vector<int> GetHeaderValuesDataVector(uint16_t qtdPeers, string externalIp, uint16_t externalPort, ChunkUniqueID serverTipChunkUId,
+        		uint32_t serverStreamRate, uint32_t channelCreationTime, uint32_t nowTime, uint32_t clientTime, uint32_t bootID);
         vector<uint8_t> GetHeaderValuesSizeVector();
 };
 

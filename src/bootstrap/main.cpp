@@ -25,7 +25,13 @@ int main(int argc, char* argv[]) {
     string myTCPPort = TCPPORT;
     string myUDPPort = UDPPORT;
     string peerlistSelectorStrategy = "";
+
+    // ECM ***********
+
     unsigned int peerListSharedSize = 20;
+    uint8_t minimumBandwidth = 0;               // minimum bandwidth to share peer in peerListShare
+    uint8_t minimumBandwidth_FREE = 0;          // only if --separatedFreeOutList
+
 
     string arg1 = "";
     if( argv[1] != NULL)
@@ -40,20 +46,24 @@ int main(int argc, char* argv[]) {
         cout <<"  -udpPort                     define the tcp bootstrap port (default: "<<myUDPPort<<")"<<endl;
         cout <<"  -peerlistSelectorStrategy    define the tcp bootstrap port (default: RandomStrategy)"<<endl;
         cout <<"  -peerListSharedSize          define the peer quantity to be shared each time between bootstrap and peer ()(default: "<<peerListSharedSize<<")"<<endl;
-
+        cout <<"  -minimalOUTsend              define the minimum OUT to share a peer                     (defautl: "<<(int)minimumBandwidth<<")"<<endl;
+        cout <<"  -minimalOUTFREEsend          define the minimum OUT_FRER to share a peer to Free Rider  (defautl: "<<(int)minimumBandwidth_FREE<<")"<<endl;
+        cout <<"                               **(If chosen this automatically sets -separatedFreeOutList=true)"<<endl;
         cout <<endl;
+        cout <<"  --separatedFreeOutList       share peer per listOut or ListOut_FREE "<<endl;
         cout <<"  --isolaVirtutalPeerSameIP    permit only different IP partner "<<endl;
         exit(1);
     }
 
+
     XPConfig::Instance()->OpenConfigFile("");
     XPConfig::Instance()->SetBool("isolaVirtutalPeerSameIP", false);
+    XPConfig::Instance()->SetBool("separatedFreeOutList",false);
 
     int optind=1;
     // decode arguments
     while ((optind < argc) && (argv[optind][0]=='-')) {
         string swtc = argv[optind];
-
         if (swtc=="-tcpPort") {
             optind++;
             myTCPPort = argv[optind];
@@ -62,22 +72,33 @@ int main(int argc, char* argv[]) {
             optind++;
             myUDPPort = argv[optind];
         }
-        else if (swtc=="-peerlistSelectorStrategy")
-        {
+        else if (swtc=="-peerlistSelectorStrategy"){
             optind++;
             peerlistSelectorStrategy = argv[optind];
         }
+
+        else if (swtc=="-peerListSharedSize") {
+                 optind++;
+                 peerListSharedSize = atoi(argv[optind]);
+        }
+        else if (swtc=="-minimalOUTsend") {
+            optind++;
+            minimumBandwidth = atoi(argv[optind]);
+         }
+        else if (swtc=="-minimalOUTFREEsend") {
+            optind++;
+            minimumBandwidth_FREE = atoi(argv[optind]);
+            XPConfig::Instance()->SetBool("separatedFreeOutList",true);
+         }
+
+
+
         else if (swtc=="--isolaVirtutalPeerSameIP")
         {
             XPConfig::Instance()->SetBool("isolaVirtutalPeerSameIP", true);
         }
-        else if (swtc=="-peerListSharedSize")
-        {
-            optind++;
-            peerListSharedSize = atoi(argv[optind]);
-        }
-        else
-        {
+
+        else {
             cout << "Invalid Arguments"<<endl; 
             exit(1);
         }
@@ -85,7 +106,7 @@ int main(int argc, char* argv[]) {
     }
 
     XPConfig::Instance()->OpenConfigFile("");
-    Bootstrap bootstrapInstance(myUDPPort, peerlistSelectorStrategy, peerListSharedSize);
+    Bootstrap bootstrapInstance(myUDPPort, peerlistSelectorStrategy, peerListSharedSize, minimumBandwidth, minimumBandwidth_FREE);
     
     boost::thread TTCPSERVER(boost::bind(&Bootstrap::TCPStart, &bootstrapInstance, myTCPPort.c_str()));
     boost::thread TUDPSERVER(boost::bind(&Bootstrap::UDPStart, &bootstrapInstance));
