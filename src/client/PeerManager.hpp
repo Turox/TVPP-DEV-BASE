@@ -66,6 +66,7 @@ class PeerManager
 
 
 	unsigned int GetPeerActiveSize(set<string>* peerActive);
+	unsigned int GetPeerActiveSize_OPENED(set<string>* peerActive);
 	unsigned int GetPeerActiveSizeTotal(); //usada para fornecer o total de pares ativos em In + Out sem repetição. Será removida!!!
 
 	bool IsPeerActive(string peer,set<string>* peerActive);

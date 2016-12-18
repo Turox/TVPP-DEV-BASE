@@ -170,6 +170,11 @@ unsigned int PeerManager::GetPeerActiveSize(set<string>* peerActive)
 	return size;
 }
 
+unsigned int PeerManager::GetPeerActiveSize_OPENED(set<string>* peerActive)
+{
+	return  peerActive->size();
+}
+
 // Gera o total de parceiros somando In e Out sem repeticoes
 
 unsigned int PeerManager::GetPeerActiveSizeTotal()
