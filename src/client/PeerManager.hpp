@@ -7,8 +7,17 @@
 #include <stdio.h>
 #include "../common/PeerData.hpp"
 #include <boost/thread/mutex.hpp>
+#include <stdint.h>
+#include <iostream>
+#include <set>
+#include <algorithm>
+#include <utility>
+#include <vector>
+#include <sstream>
 
 #define PEER_ACTIVE_COOLDOWN 5
+
+
 
 // Alterações: Eliseu César Miguel
 // 13/01/2015
@@ -47,6 +56,10 @@ class PeerManager
 	void SetMaxActivePeersIn(unsigned int maxActivePeers);
 	void SetMaxActivePeersOut(unsigned int maxActivePeers);
 	void SetMaxActivePeersOutFREE(unsigned int maxActivePeersFREE);
+	void SetNewMMaxActivePeersOut(int newMaxActivePeers,set<string>* peerActiveOut);
+
+
+
 	void SetMaxOutFreeToBeSeparated(unsigned int outLimitToSeparateFree);
 
 	bool AddPeer(Peer* newPeer, int sizePeerListOut = -1, int sizePeerListOut_FREE = -1); //add na lista de vizinhos

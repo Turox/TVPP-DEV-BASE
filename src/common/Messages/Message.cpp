@@ -131,7 +131,6 @@ vector<int> Message::SplitHeaderValues(uint8_t* fromByte, vector<uint8_t> sizes)
             default:
                 break;
         }
-        //cout<<"Split: "<<out[i]<<" j:"<<j<<" i:"<<i<<" size:"<<(uint32_t)sizes[i]<<endl;
         j+=sizes[i]/8;
     }
     return out;

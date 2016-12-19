@@ -63,6 +63,7 @@ void Client::ClientInit(char *host_ip,
     peerManager.SetRemoveWorsePartner (XPConfig::Instance()->GetBool("removeWorsePartner"));
     peerManager.SetMaxOutFreeToBeSeparated(outLimitToSeparateFree);
     this->timeToRemovePeerOutWorseBand = timeToRemovePeerOutWorseBand;
+    this->limitUpload = limitUpload;
 
     JANELA = janela;
     NUM_PEDIDOS = num;
@@ -200,11 +201,12 @@ bool Client::ConnectToBootstrap()
     if (peerMode == MODE_SERVER && !serverActive)
         message = new MessageChannel(CHANNEL_CREATE, perform_udp_punch, externalPort, idChannel, nowtime,
 				peerManager.GetMaxActivePeers(peerManager.GetPeerActiveOut()),
-				peerManager.GetMaxActivePeers(peerManager.GetPeerActiveOut(true,0)));
+				peerManager.GetMaxActivePeers(peerManager.GetPeerActiveOut(true,0)),-1);
     else
         message = new MessageChannel(CHANNEL_CONNECT, perform_udp_punch, externalPort, idChannel, nowtime,
         		                     peerManager.GetMaxActivePeers(peerManager.GetPeerActiveOut()),
-        						     peerManager.GetMaxActivePeers(peerManager.GetPeerActiveOut(true,0)));
+        						     peerManager.GetMaxActivePeers(peerManager.GetPeerActiveOut(true,0)),
+									 this->GetLimitUpload());
 
 
     message->SetIntegrity();
@@ -364,13 +366,15 @@ void Client::HandlePeerlistMessage(MessagePeerlist* message, string sourceAddres
     PeerlistTypes messageType = (PeerlistTypes)peerlistHeader[0];
     uint16_t peersReceived = peerlistHeader[1];
 
-
     if (messageType == PEERLIST_SHARE)
     {
         MessagePeerlistShare* messageWrapper = new MessagePeerlistShare(message);
         peerlistHeader = messageWrapper->GetHeaderValues();
 
         uint32_t bootID = peerlistHeader[13];
+        int16_t newOut     = (int16_t)peerlistHeader[14];
+        int16_t newOutFree = (int16_t)peerlistHeader[15];
+
         if (XPConfig::Instance()->GetBool("configurarBootID")){
         	cout<<"IDBootConfig = "<<bootID<<endl;
         	this->SetAutentication(bootID);
@@ -415,6 +419,15 @@ void Client::HandlePeerlistMessage(MessagePeerlist* message, string sourceAddres
             time(&nowtime);
             uint32_t bootTime = peerlistHeader[11];
             uint32_t sendTime = peerlistHeader[12];
+
+            /* ECM
+             */
+            cout <<"valor recebido para NEW OUT"<<newOut<<endl;
+            cout <<"valor recebido para NEW OUT FREE"<<newOutFree<<endl;
+
+            peerManager.SetNewMMaxActivePeersOut(newOut, peerManager.GetPeerActiveOut());
+            peerManager.SetNewMMaxActivePeersOut(newOutFree, peerManager.GetPeerActiveOut(true,0));
+
             uint32_t rcvTime = (uint32_t)nowtime;
             bootstrapTimeShift = bootTime - sendTime - (rcvTime - sendTime)/2;
             
@@ -1327,12 +1340,12 @@ void Client::FazPedidos(int stepInMs)
                 PeerData* chosenPeerData = peerManager.GetPeerData(chosenPeer->GetID());
                 chosenPeerData->IncPendingRequests();
                 (*it)->CreateAttempt(chosenPeerData);
-                //udp->Send(chosenPeer->GetID(), message->GetFirstByte(), message->GetSize());
+
                 udp->EnqueueSend(chosenPeer->GetID(), message);
             }
             peerActiveInLock.unlock();
             peerListLock.unlock();
-            //delete message;
+
         }
         (*it)->DecTTL(stepInMs);
     }
@@ -1618,8 +1631,11 @@ void Client::UDPSend()
                         while (!leakyBucketUpload->DecToken(aMessage->GetMessage()->GetSize())); //while leaky bucket cannot provide
                 }
                 udp->Send(aMessage->GetAddress(),aMessage->GetMessage()->GetFirstByte(),aMessage->GetMessage()->GetSize());
-                if (aMessage->GetMessage()->GetOpcode() == OPCODE_DATA)
+                if (aMessage->GetMessage()->GetOpcode() == OPCODE_DATA){
                     chunksSent++;
+                    peerManager.GetPeerData(aMessage->GetAddress())->inc_peerSentChunks(); //ECM pontua clientes que requisitam mais chunks
+
+                }
 
             }
         }
@@ -1657,3 +1673,6 @@ void Client::SetAutentication(uint32_t bootID){
 
 }
 
+int Client::GetLimitUpload(){
+	return this->limitUpload;
+}

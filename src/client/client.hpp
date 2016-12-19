@@ -144,6 +144,7 @@ class Client
         void CreateLogFiles();
         uint32_t GetAutentication();
         void SetAutentication(uint32_t bootID);
+        int GetLimitUpload();
 
 
         //PARAMETROS-------------
@@ -171,6 +172,7 @@ class Client
 
 		int timeToRemovePeerOutWorseBand;            // ECM only if XPConfig::Instance()->GetBool("removeWorsePartner")== true;
 		                                             // used for connect a new partner whit good band than other in peerActiveList.
+		int limitUpload;
 
 
 		PeerRequester* requester;

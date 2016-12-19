@@ -17,12 +17,13 @@ class Peer
         
         int sizePeerListOutInformed;        // ECM used to store the out quantity the peer can manage
         int sizePeerListOutInformed_FREE;   // ECM lista de pares pobres, quando existir
+        int limitUpload;
 
-        void ConstructorAux(string IP, string port, int sizePeerListOutInformed, int sizePeerListOutInformed_FREE);
+        void ConstructorAux(string IP, string port, int sizePeerListOutInformed, int sizePeerListOutInformed_FREE, int limitUpload);
         void ResetID();
     public:
-        Peer(string IP_port = "", int sizePeerListOutInformed = -1, int sizePeerListOutInformed_FREE = -1);
-        Peer(string IP, string port, int sizePeerListOutInformed = -1, int sizePeerListOutInformed_FREE = -1);
+        Peer(string IP_port = "", int sizePeerListOutInformed = -1, int sizePeerListOutInformed_FREE = -1, int limitUpload = -1);
+        Peer(string IP, string port, int sizePeerListOutInformed = -1, int sizePeerListOutInformed_FREE = -1, int limitUpload = -1);
 
         void SetID(string ID);
         void SetIP(string IP);
@@ -33,6 +34,9 @@ class Peer
 
         int GetSizePeerListOutInformed();
         int GetSizePeerListOutInformed_FREE();
+        int GetLimitUpload();
+        void SetLimitUpload(int limitUpload);
+
 
         void SetSizePeerListOutInformed(int sizePeerListOutInformed);
         void SetSizePeerListOutInformed_FREE(int sizePeerListOutInformed_FREE);

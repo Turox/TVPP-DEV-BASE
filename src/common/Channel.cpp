@@ -190,3 +190,4 @@ FILE* Channel::GetOverlayFile()
 {
     return overlayFile;
 }
+

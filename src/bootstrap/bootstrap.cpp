@@ -3,7 +3,7 @@
 using namespace std;
 
 /** Construtor **/
-Bootstrap::Bootstrap(string udpPort, string peerlistSelectorStrategy, unsigned int peerListSharedSize, uint8_t minimumBandwidth, uint8_t minimumBandwidth_FREE)
+Bootstrap::Bootstrap(string udpPort, string peerlistSelectorStrategy, unsigned int peerListSharedSize, uint8_t minimumBandwidth, uint8_t minimumBandwidth_FREE,uint16_t hit_count)
 {
     if (peerlistSelectorStrategy == "TournamentStrategy")
         this->peerlistSelectorStrategy = new TournamentStrategy();
@@ -16,6 +16,7 @@ Bootstrap::Bootstrap(string udpPort, string peerlistSelectorStrategy, unsigned i
     this->peerListSharedSize=peerListSharedSize;
     this->minimumBandwidth = minimumBandwidth;
     this->minimumBandwidth_FREE = minimumBandwidth_FREE;
+    this->hit_count = hit_count;
 
     udp = new UDPServer(boost::lexical_cast<uint32_t>(udpPort),0,NULL,new FIFOMessageScheduler());
 
@@ -56,8 +57,9 @@ Message *Bootstrap::HandleChannelMessage(MessageChannel* message, string sourceA
     uint32_t clientTime = channelHeader[5];
 	uint16_t sizePeerListOut = channelHeader[6];
 	uint16_t sizePeerListOut_FREE = channelHeader[7];
+	uint16_t limitUpload = channelHeader[8];
 
-	Peer* source = new Peer(sourceAddress, sizePeerListOut, sizePeerListOut_FREE);
+	Peer* source = new Peer(sourceAddress, sizePeerListOut, sizePeerListOut_FREE,limitUpload);
 
 
     cout<<"Channel MSG: "<<(uint32_t)channelFlag<<", "<<performingPunch<<", "<<version<<", "<<externalPort<<", "<<channelId<<endl;
@@ -70,7 +72,6 @@ Message *Bootstrap::HandleChannelMessage(MessageChannel* message, string sourceA
         boost::mutex::scoped_lock channelListLock(channelListMutex);
         switch (channelFlag)
         {
-        cout<<"cheguei aqui"<<endl;
         case CHANNEL_CREATE:
             if (channelList.find(channelId) == channelList.end())
             {
@@ -79,14 +80,12 @@ Message *Bootstrap::HandleChannelMessage(MessageChannel* message, string sourceA
             else
             {
                 messageReply = new MessageError(ERROR_CHANNEL_CANT_BE_CREATED);
-                //message = "Channel "+idChannelStr+" cant be created, ID already in use";
             }
             break;
         case CHANNEL_CONNECT:
             if (channelList.count(channelId) == 0)
             {
                 messageReply = new MessageError(ERROR_CHANNEL_UNAVAILABLE);
-                //message = "Channel "+idChannelStr+" unavailable";
             }
             else 
             {
@@ -110,9 +109,25 @@ Message *Bootstrap::HandleChannelMessage(MessageChannel* message, string sourceA
 
             time_t nowtime;
             time(&nowtime);
+
+            int16_t newOut = -1 , newOUt_FREE = -1;
+            if (XPConfig::Instance()->GetBool("dynamicTopologyArrangement"))
+            {
+            	 channelList[channelId].GetPeerData(source).IncHit_count();
+            	 cout <<"o hit é "<<channelList[channelId].GetPeerData(source).GetHit_count()<<endl;
+            	 if (channelList[channelId].GetPeerData(source).GetHit_count() >= this->hit_count){
+            		 channelList[channelId].GetPeerData(source).SetHit_count(0);
+            		 if (channelList[channelId].GetPeerData(source).GetSizePeerListOutInformed() > 0){
+            		    newOut = 3;
+            		    newOUt_FREE = 1;
+            		 }
+            	 }
+
+            }
+
             messageReply = new MessagePeerlistShare(selectedPeers.size(), source->GetIP(), externalPort, 
                 channelList[channelId].GetServerNewestChunkID(), channelList[channelId].GetServerEstimatedStreamRate(), 
-                channelList[channelId].GetCreationTime(), nowtime, clientTime, this->bootStrap_ID);
+                channelList[channelId].GetCreationTime(), nowtime, clientTime, this->bootStrap_ID, newOut, newOUt_FREE);
             /**
             * Varre a lista de peers canditados, separando cada campo por um caracter de seperação    
             * caso esse campo for ultimo campo a ser enviado insere um caracter que sinaliza o fim da mensagem
@@ -234,7 +249,6 @@ void Bootstrap::HandlePingMessage(MessagePingBoot* message, string sourceAddress
         {
         	totalPeer = channelList[channelId].GetPeerListSize()-1; //subtrai um para excluir o servidor
             channelList[channelId].GetPeerData(srcPeer).SetMode(peerMode);
-            //ECM alteracao no TTL para TTLChannel que agora e usado no channel
             channelList[channelId].GetPeerData(srcPeer).SetTTLChannel(TTLChannel);
 
             //If ping from server

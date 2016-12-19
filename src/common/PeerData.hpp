@@ -11,6 +11,9 @@
 
 using namespace std;
 
+
+typedef std::pair<std::string, uint32_t> PairStrInt;
+
 /**
 * This class implements the information about the peers
 */
@@ -40,6 +43,9 @@ class PeerData
         int GetTTLChannel();
         void SetTTLChannel(int v);
         void DecTTLChannel();
+        int GetLimitUpload();
+        void SetLimitUpload(int limitUpload);
+        PairStrInt GetPairStrInt();
         //ECM
 
         void SetMode(PeerModes mode);
@@ -59,7 +65,13 @@ class PeerData
         int GetSizePeerListOutInformed_FREE ();
         void SetSizePeerListOutInformed(int sizePeerListOutInformed);
         void SetSizePeerListOutInformed_FREE(int sizePeerListOutInformed_FREE);
+        void SetHit_count(uint16_t hit_count);
+        void IncHit_count();
+        uint16_t GetHit_count();
 
+
+        void inc_peerSentChunks ();
+        uint32_t Get_peerSentChunks();
 
         ChunkUniqueID GetChunkMapHead();
         void SetChunkMapHead(ChunkUniqueID chunkMapHead);
@@ -81,6 +93,8 @@ class PeerData
         int ttlIn;
         int ttlOut;
         int ttlChannel;
+        uint32_t peerSentChunks;    // pontua clientes com maior pedidos por dados
+        uint16_t hit_count;         // contador de contatos de peers para calculo de newOut e newOutFree
         //ECM
         
         //Peer classification technologies =D

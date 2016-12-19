@@ -31,6 +31,7 @@ int main(int argc, char* argv[]) {
     unsigned int peerListSharedSize = 20;
     uint8_t minimumBandwidth = 0;               // minimum bandwidth to share peer in peerListShare
     uint8_t minimumBandwidth_FREE = 0;          // only if --separatedFreeOutList
+    uint16_t timeToSetNewOut = 0;
 
 
     string arg1 = "";
@@ -49,9 +50,12 @@ int main(int argc, char* argv[]) {
         cout <<"  -minimalOUTsend              define the minimum OUT to share a peer                     (defautl: "<<(int)minimumBandwidth<<")"<<endl;
         cout <<"  -minimalOUTFREEsend          define the minimum OUT_FRER to share a peer to Free Rider  (defautl: "<<(int)minimumBandwidth_FREE<<")"<<endl;
         cout <<"                               **(If chosen this automatically sets -separatedFreeOutList=true)"<<endl;
+        cout <<"  -timeToSetNewOut             define bootstrap' s wait time, in seconds, before calculate new OUt and OUT-FREE(default: "<<timeToSetNewOut<<")"<<endl;
+        cout <<"                                **(If chosen this automatically sets --dynamicTopologyArrangement)"<<endl;
         cout <<endl;
         cout <<"  --separatedFreeOutList       share peer per listOut or ListOut_FREE "<<endl;
         cout <<"  --isolaVirtutalPeerSameIP    permit only different IP partner "<<endl;
+        cout <<"  --dynamicTopologyArrangement permit new OUT and OUT-FREE size from bootastrap"<<endl;
         exit(1);
     }
 
@@ -59,6 +63,7 @@ int main(int argc, char* argv[]) {
     XPConfig::Instance()->OpenConfigFile("");
     XPConfig::Instance()->SetBool("isolaVirtutalPeerSameIP", false);
     XPConfig::Instance()->SetBool("separatedFreeOutList",false);
+    XPConfig::Instance()->SetBool("dynamicTopologyArrangement",false);
 
     int optind=1;
     // decode arguments
@@ -90,12 +95,21 @@ int main(int argc, char* argv[]) {
             minimumBandwidth_FREE = atoi(argv[optind]);
             XPConfig::Instance()->SetBool("separatedFreeOutList",true);
          }
-
-
+        else if (swtc=="-timeToSetNewOut") {
+            optind++;
+            timeToSetNewOut = atoi(argv[optind]);
+            timeToSetNewOut = timeToSetNewOut / 10;
+            XPConfig::Instance()->SetBool("dynamicTopologyArrangement",true);
+         }
 
         else if (swtc=="--isolaVirtutalPeerSameIP")
         {
             XPConfig::Instance()->SetBool("isolaVirtutalPeerSameIP", true);
+        }
+
+        else if (swtc=="--dynamicTopologyArrangement")
+        {
+            XPConfig::Instance()->SetBool("dynamicTopologyArrangement", true);
         }
 
         else {
@@ -106,7 +120,7 @@ int main(int argc, char* argv[]) {
     }
 
     XPConfig::Instance()->OpenConfigFile("");
-    Bootstrap bootstrapInstance(myUDPPort, peerlistSelectorStrategy, peerListSharedSize, minimumBandwidth, minimumBandwidth_FREE);
+    Bootstrap bootstrapInstance(myUDPPort, peerlistSelectorStrategy, peerListSharedSize, minimumBandwidth, minimumBandwidth_FREE, timeToSetNewOut);
     
     boost::thread TTCPSERVER(boost::bind(&Bootstrap::TCPStart, &bootstrapInstance, myTCPPort.c_str()));
     boost::thread TUDPSERVER(boost::bind(&Bootstrap::UDPStart, &bootstrapInstance));

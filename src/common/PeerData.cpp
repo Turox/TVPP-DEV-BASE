@@ -18,7 +18,17 @@ PeerData::PeerData(Peer* peer, int ttlIn, int ttlOut, int ttlChannel, int size) 
     mode = MODE_CLIENT;
     pendingRequests = 0;
     delay = 0;
+    peerSentChunks=0;
+    this->hit_count=0;
 }
+
+void PeerData::inc_peerSentChunks (){
+	this->peerSentChunks++;
+}
+uint32_t PeerData::Get_peerSentChunks(){
+	return this->peerSentChunks;
+}
+
 /** Retorna o TTL*****************/
 int PeerData::GetTTLIn()
 {
@@ -166,4 +176,29 @@ void PeerData::SetSizePeerListOutInformed_FREE(int sizePeerListOutInformed_FREE)
 {
 	this->GetPeer()->SetSizePeerListOutInformed_FREE(sizePeerListOutInformed_FREE);
 }
+
+int PeerData::GetLimitUpload(){
+	return this->GetPeer()->GetLimitUpload();
+}
+void PeerData::SetLimitUpload(int limitUpload){
+	this->GetPeer()->SetLimitUpload(limitUpload);
+}
+PairStrInt PeerData::GetPairStrInt()
+{
+    return PairStrInt(this->GetPeer()->GetID(), this->peerSentChunks);
+}
+
+void PeerData::SetHit_count(uint16_t hit_count){
+	this->hit_count = hit_count;
+}
+void PeerData::IncHit_count(){
+	this->hit_count++;
+}
+
+uint16_t PeerData::GetHit_count(){
+	return this->hit_count;
+}
+
+
+
 

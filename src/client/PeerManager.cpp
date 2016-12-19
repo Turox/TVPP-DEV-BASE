@@ -4,6 +4,8 @@
  */
 
 #include "PeerManager.hpp"
+bool pairCompare(PairStrInt a, PairStrInt b){ return (a.second > b.second);}
+void sortPairStrIntVec(std::vector<PairStrInt>& vec){std::sort(vec.begin(), vec.end(), pairCompare);}
 
 PeerManager::PeerManager()
 {
@@ -20,6 +22,48 @@ unsigned int PeerManager::GetMaxActivePeers(set<string>* peerActive)
 void PeerManager::SetMaxActivePeersIn(unsigned int maxActivePeers) {this->maxActivePeersIn = maxActivePeers;}
 void PeerManager::SetMaxActivePeersOut(unsigned int maxActivePeers) {this->maxActivePeersOut = maxActivePeers;}
 void PeerManager::SetMaxActivePeersOutFREE(unsigned int maxActivePeers){this->maxActivePeersOutFREE = maxActivePeers;}
+
+
+void PeerManager::SetNewMMaxActivePeersOut(int newMaxActivePeers,set<string>* peerActive){
+	if (newMaxActivePeers < 0) {cout<<"saindo-1"<<endl;return;}
+	unsigned int* currentMaxActivePeers;
+
+	if (peerActive == &peerActiveOut)
+		currentMaxActivePeers = &maxActivePeersOut;
+	else
+	{
+		if (peerActive == &peerActiveOutFREE)
+			currentMaxActivePeers = &maxActivePeersOutFREE;
+	    else
+	    {
+	    	cout <<"não houve peerActiveOut selecionada corretamente"<<endl;
+	    	return;
+	    }
+	}
+	if (newMaxActivePeers >= (int)(*currentMaxActivePeers)) {cout<<"saindo-2"<<endl; *currentMaxActivePeers = newMaxActivePeers;return;}
+	*currentMaxActivePeers = newMaxActivePeers;
+    cout<<"antes do semáforo"<<endl;
+    boost::mutex::scoped_lock peerListLock(peerListMutex);
+	boost::mutex* peerActiveMutex = this->GetPeerActiveMutex(peerActive);
+	boost::mutex::scoped_lock peerActiveLock(*peerActiveMutex);
+
+	std::vector<PairStrInt> auxOutList;
+    for(set<string>::iterator i = peerActive->begin(); i != peerActive->end(); i++)
+        auxOutList.push_back(peerList[*i].GetPairStrInt());
+    sortPairStrIntVec(auxOutList);
+    peerActive->clear();
+
+    cout<<"dentro do semáforo"<<endl;
+    for (int i =0;i<newMaxActivePeers; i++)
+    	if (i < auxOutList.size()){
+    	     cout <<"inserindo "<<auxOutList[i].first<<endl;
+    	     peerActive->insert(auxOutList[i].first);
+    }
+	peerActiveLock.unlock();
+	peerListLock.unlock();
+	cout<<"fim da troca de out"<<endl;
+
+}
 
 bool PeerManager::AddPeer(Peer* newPeer, int sizePeerListOut, int sizePeerListOut_FREE)
 {

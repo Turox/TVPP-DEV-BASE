@@ -2,12 +2,12 @@
 
 using namespace std;
 
-Peer::Peer(string IP, string port, int sizePeerListOutInformed, int sizePeerListOutInformed_FREE)
+Peer::Peer(string IP, string port, int sizePeerListOutInformed, int sizePeerListOutInformed_FREE, int limitUpload)
 {
-    ConstructorAux(IP,port, sizePeerListOutInformed, sizePeerListOutInformed_FREE);
+    ConstructorAux(IP,port, sizePeerListOutInformed, sizePeerListOutInformed_FREE, limitUpload);
 }
 
-Peer::Peer(string IP_port, int sizePeerListOutInformed, int sizePeerListOutInformed_FREE)
+Peer::Peer(string IP_port, int sizePeerListOutInformed, int sizePeerListOutInformed_FREE,  int limitUpload)
 {
     string IP, port;
     size_t pos;
@@ -16,16 +16,17 @@ Peer::Peer(string IP_port, int sizePeerListOutInformed, int sizePeerListOutInfor
     IP = IP_port.substr(0, pos);
     port = IP_port.substr(pos+1);
 
-    ConstructorAux(IP,port, sizePeerListOutInformed, sizePeerListOutInformed_FREE);
+    ConstructorAux(IP,port, sizePeerListOutInformed, sizePeerListOutInformed_FREE, limitUpload);
 }
 
-void Peer::ConstructorAux(string IP, string port, int sizePeerListOutInformed, int sizePeerListOutInformed_FREE)
+void Peer::ConstructorAux(string IP, string port, int sizePeerListOutInformed, int sizePeerListOutInformed_FREE, int limitUpload)
 {
     this->IP = IP;
     this->port = port;
     ResetID();
     this->sizePeerListOutInformed = sizePeerListOutInformed;
     this->sizePeerListOutInformed_FREE = sizePeerListOutInformed_FREE;
+    this->limitUpload = limitUpload;
 }
 void Peer::ResetID()
 {
@@ -78,3 +79,11 @@ void Peer::SetSizePeerListOutInformed_FREE(int sizePeerListOutInformed_FREE)
 {
 	this->sizePeerListOutInformed_FREE = sizePeerListOutInformed_FREE;
 }
+
+int Peer::GetLimitUpload(){
+	return this->limitUpload;
+}
+void Peer::SetLimitUpload(int limitUpload){
+	this->limitUpload = limitUpload;
+}
+
