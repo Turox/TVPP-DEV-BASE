@@ -191,8 +191,9 @@ PairStrInt PeerData::GetPairStrInt()
 void PeerData::SetHit_count(uint16_t hit_count){
 	this->hit_count = hit_count;
 }
-void PeerData::IncHit_count(){
-	this->hit_count++;
+void PeerData::DecHit_count(){
+	if (this->hit_count >0)
+	    this->hit_count--;
 }
 
 uint16_t PeerData::GetHit_count(){
@@ -200,5 +201,25 @@ uint16_t PeerData::GetHit_count(){
 }
 
 
+int PeerData::GetSizePeerListOutNew ()
+{
+   return this->GetPeer()->GetSizePeerListOutNew();
+}
+
+int PeerData::GetSizePeerListOutNew_FREE ()
+{
+   return this->GetPeer()->GetSizePeerListOutNew_FREE();
+}
+
+
+void PeerData::SetSizePeerListOutNew(int sizePeerListOutNew)
+{
+	this->GetPeer()->SetSizePeerListOutNew(sizePeerListOutNew);
+}
+
+void PeerData::SetSizePeerListOutNew_FREE(int sizePeerListOutNew_FREE)
+{
+	this->GetPeer()->SetSizePeerListOutNew_FREE(sizePeerListOutNew_FREE);
+}
 
 

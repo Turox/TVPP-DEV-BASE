@@ -65,8 +65,14 @@ class PeerData
         int GetSizePeerListOutInformed_FREE ();
         void SetSizePeerListOutInformed(int sizePeerListOutInformed);
         void SetSizePeerListOutInformed_FREE(int sizePeerListOutInformed_FREE);
+
+        int GetSizePeerListOutNew ();
+        int GetSizePeerListOutNew_FREE ();
+        void SetSizePeerListOutNew(int sizePeerListOutNew);
+        void SetSizePeerListOutNew_FREE(int sizePeerListOutNew_FREE);
+
         void SetHit_count(uint16_t hit_count);
-        void IncHit_count();
+        void DecHit_count();
         uint16_t GetHit_count();
 
 

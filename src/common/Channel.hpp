@@ -33,11 +33,16 @@ class Channel
         Peer* GetServer();
         Peer* GetPeer(Peer* peer);
 		bool HasPeer(Peer* peer);
-        void AddPeer(Peer* peer);
+        void AddPeer(Peer* peer, uint16_t hit_count = 0);
         void RemovePeer(Peer* peer);
 		void RemovePeer(string peerId);
 		PeerData& GetPeerData(Peer* peer);
         time_t GetCreationTime();
+        void SetHit_count(uint16_t hit_count);
+        void DecHit_count();
+        uint16_t GetHit_count();
+        void RenewOUTALL();
+
 
         vector<PeerData*> SelectPeerList(Strategy* strategy, Peer* srcPeer, unsigned int peerQuantity, bool virtualPeer,
         		                         uint8_t minimumBandwidth, uint8_t minimumBandwidth_FREE, bool separatedFreeOutList);
@@ -55,6 +60,7 @@ class Channel
         unsigned int channelId;
         Peer* serverPeer; 
         map<string, PeerData> peerList;
+        uint16_t hit_count;
 
 		ChunkUniqueID serverNewestChunkID;
         int serverEstimatedStreamRate;

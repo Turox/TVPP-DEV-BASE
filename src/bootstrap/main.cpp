@@ -32,6 +32,7 @@ int main(int argc, char* argv[]) {
     uint8_t minimumBandwidth = 0;               // minimum bandwidth to share peer in peerListShare
     uint8_t minimumBandwidth_FREE = 0;          // only if --separatedFreeOutList
     uint16_t timeToSetNewOut = 0;
+    uint16_t timeNewOutDelayStarts = 60/10;         // 60 segundos
 
 
     string arg1 = "";
@@ -50,8 +51,9 @@ int main(int argc, char* argv[]) {
         cout <<"  -minimalOUTsend              define the minimum OUT to share a peer                     (defautl: "<<(int)minimumBandwidth<<")"<<endl;
         cout <<"  -minimalOUTFREEsend          define the minimum OUT_FRER to share a peer to Free Rider  (defautl: "<<(int)minimumBandwidth_FREE<<")"<<endl;
         cout <<"                               **(If chosen this automatically sets -separatedFreeOutList=true)"<<endl;
-        cout <<"  -timeToSetNewOut             define bootstrap' s wait time, in seconds, before calculate new OUt and OUT-FREE(default: "<<timeToSetNewOut<<")"<<endl;
+        cout <<"  -timeToSetNewOut             define bootstrap' s wait time, in seconds, before calculate new OUT and OUT-FREE(default: "<<timeToSetNewOut<<")"<<endl;
         cout <<"                                **(If chosen this automatically sets --dynamicTopologyArrangement)"<<endl;
+        cout <<"  -timeNewOutDelayStarts        define bootstrap' s delay to starts timeToSetNewOut, in seconds, before calculate new OUT and OUT-FREE(default: "<<timeNewOutDelayStarts<<")"<<endl;
         cout <<endl;
         cout <<"  --separatedFreeOutList       share peer per listOut or ListOut_FREE "<<endl;
         cout <<"  --isolaVirtutalPeerSameIP    permit only different IP partner "<<endl;
@@ -101,6 +103,12 @@ int main(int argc, char* argv[]) {
             timeToSetNewOut = timeToSetNewOut / 10;
             XPConfig::Instance()->SetBool("dynamicTopologyArrangement",true);
          }
+        else if (swtc=="-timeNewOutDelayStarts") {
+            optind++;
+            timeNewOutDelayStarts = atoi(argv[optind]);
+            timeNewOutDelayStarts = timeNewOutDelayStarts / 10;
+         }
+
 
         else if (swtc=="--isolaVirtutalPeerSameIP")
         {
@@ -120,7 +128,7 @@ int main(int argc, char* argv[]) {
     }
 
     XPConfig::Instance()->OpenConfigFile("");
-    Bootstrap bootstrapInstance(myUDPPort, peerlistSelectorStrategy, peerListSharedSize, minimumBandwidth, minimumBandwidth_FREE, timeToSetNewOut);
+    Bootstrap bootstrapInstance(myUDPPort, peerlistSelectorStrategy, peerListSharedSize, minimumBandwidth, minimumBandwidth_FREE, timeToSetNewOut, timeNewOutDelayStarts);
     
     boost::thread TTCPSERVER(boost::bind(&Bootstrap::TCPStart, &bootstrapInstance, myTCPPort.c_str()));
     boost::thread TUDPSERVER(boost::bind(&Bootstrap::UDPStart, &bootstrapInstance));

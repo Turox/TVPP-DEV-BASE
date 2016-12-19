@@ -28,6 +28,23 @@ Channel::Channel(unsigned int channelId, Peer* serverPeer)
     } 
 }
 
+void Channel::RenewOUTALL(){
+
+    for (map<string, PeerData>::iterator i = peerList.begin(); i != peerList.end(); i++){
+    	if (i->second.GetSizePeerListOutInformed() > 0){
+    		cout<<"atualizar out para "<<i->second.GetPeer()->GetID()<<endl;
+    		i->second.SetSizePeerListOutInformed(i->second.GetSizePeerListOutNew());
+    		i->second.SetSizePeerListOutInformed_FREE(i->second.GetSizePeerListOutNew_FREE());
+
+    		//calcula novo
+    	    i->second.SetSizePeerListOutNew(4);
+    	    i->second.SetSizePeerListOutNew_FREE(3);
+    	}
+    }
+}
+
+
+
 void Channel::SetServerNewestChunkID(ChunkUniqueID serverNewestChunkID)
 {
     this->serverNewestChunkID = serverNewestChunkID;
@@ -68,9 +85,11 @@ bool Channel::HasPeer(Peer* peer)
         return false;
 }
 
-void Channel::AddPeer(Peer* peer)
+void Channel::AddPeer(Peer* peer, uint16_t hit_count)
 {
     peerList[peer->GetID()] = PeerData(peer);
+    peerList[peer->GetID()].SetHit_count(hit_count);
+
 }
 
 void Channel::RemovePeer(Peer* peer)
@@ -131,7 +150,6 @@ vector<PeerData*> Channel::SelectPeerList(Strategy* strategy, Peer* srcPeer, uns
     allPeers = selectedPeersAUX;
 
     if (peerList.size() <= peerQuantity)
-//        return allPeers;
     	selectedPeers = allPeers;
     else
     {
@@ -189,5 +207,17 @@ FILE* Channel::GetPerformanceFile()
 FILE* Channel::GetOverlayFile()
 {
     return overlayFile;
+}
+
+void Channel::SetHit_count(uint16_t hit_count){
+	this->hit_count = hit_count;
+}
+void Channel::DecHit_count(){
+	if (this->hit_count >0)
+	    this->hit_count--;
+}
+
+uint16_t Channel::GetHit_count(){
+	return this->hit_count;
 }
 

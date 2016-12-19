@@ -3,7 +3,7 @@
 using namespace std;
 
 /** Construtor **/
-Bootstrap::Bootstrap(string udpPort, string peerlistSelectorStrategy, unsigned int peerListSharedSize, uint8_t minimumBandwidth, uint8_t minimumBandwidth_FREE,uint16_t hit_count)
+Bootstrap::Bootstrap(string udpPort, string peerlistSelectorStrategy, unsigned int peerListSharedSize, uint8_t minimumBandwidth, uint8_t minimumBandwidth_FREE,uint16_t hit_count,  uint16_t timeNewOutDelayStarts)
 {
     if (peerlistSelectorStrategy == "TournamentStrategy")
         this->peerlistSelectorStrategy = new TournamentStrategy();
@@ -17,6 +17,7 @@ Bootstrap::Bootstrap(string udpPort, string peerlistSelectorStrategy, unsigned i
     this->minimumBandwidth = minimumBandwidth;
     this->minimumBandwidth_FREE = minimumBandwidth_FREE;
     this->hit_count = hit_count;
+    this->timeNewOutDelayStarts = timeNewOutDelayStarts;
 
     udp = new UDPServer(boost::lexical_cast<uint32_t>(udpPort),0,NULL,new FIFOMessageScheduler());
 
@@ -41,7 +42,6 @@ Message *Bootstrap::HandleTCPMessage(Message* message, string sourceAddress, uin
         return NULL;
         break;
     }
-    //delete message;
 }
 
 Message *Bootstrap::HandleChannelMessage(MessageChannel* message, string sourceAddress)
@@ -76,6 +76,7 @@ Message *Bootstrap::HandleChannelMessage(MessageChannel* message, string sourceA
             if (channelList.find(channelId) == channelList.end())
             {
                 channelList[channelId] = Channel(channelId, source);
+                channelList[channelId].SetHit_count(this->hit_count + this->timeNewOutDelayStarts);  // configura hit do canal com atraso para estabelecer a rede
             }
             else
             {
@@ -91,7 +92,7 @@ Message *Bootstrap::HandleChannelMessage(MessageChannel* message, string sourceA
             {
                 if (!channelList[channelId].HasPeer(source))
                 {
-                    channelList[channelId].AddPeer(source);
+                    channelList[channelId].AddPeer(source,this->hit_count);  // add o peer com o hit para não alterar o out dele até o hit_count = 0
                 }
             }
             break;
@@ -105,29 +106,19 @@ Message *Bootstrap::HandleChannelMessage(MessageChannel* message, string sourceA
         {
             vector<PeerData*> selectedPeers = channelList[channelId].SelectPeerList(peerlistSelectorStrategy, source, peerListSharedSize,
             		                                                                XPConfig::Instance()->GetBool("isolaVirtutalPeerSameIP"),minimumBandwidth,
-																					minimumBandwidth_FREE, XPConfig::Instance()->GetBool("separatedFreeOutList"));
-
+     																				minimumBandwidth_FREE, XPConfig::Instance()->GetBool("separatedFreeOutList"));
             time_t nowtime;
             time(&nowtime);
 
-            int16_t newOut = -1 , newOUt_FREE = -1;
-            if (XPConfig::Instance()->GetBool("dynamicTopologyArrangement"))
-            {
-            	 channelList[channelId].GetPeerData(source).IncHit_count();
-            	 cout <<"o hit é "<<channelList[channelId].GetPeerData(source).GetHit_count()<<endl;
-            	 if (channelList[channelId].GetPeerData(source).GetHit_count() >= this->hit_count){
-            		 channelList[channelId].GetPeerData(source).SetHit_count(0);
-            		 if (channelList[channelId].GetPeerData(source).GetSizePeerListOutInformed() > 0){
-            		    newOut = 3;
-            		    newOUt_FREE = 1;
-            		 }
-            	 }
-
-            }
-
             messageReply = new MessagePeerlistShare(selectedPeers.size(), source->GetIP(), externalPort, 
                 channelList[channelId].GetServerNewestChunkID(), channelList[channelId].GetServerEstimatedStreamRate(), 
-                channelList[channelId].GetCreationTime(), nowtime, clientTime, this->bootStrap_ID, newOut, newOUt_FREE);
+                channelList[channelId].GetCreationTime(), nowtime, clientTime, this->bootStrap_ID,
+				channelList[channelId].GetPeerData(source).GetSizePeerListOutNew(),
+				channelList[channelId].GetPeerData(source).GetSizePeerListOutNew_FREE());
+
+
+
+
             /**
             * Varre a lista de peers canditados, separando cada campo por um caracter de seperação    
             * caso esse campo for ultimo campo a ser enviado insere um caracter que sinaliza o fim da mensagem
@@ -264,6 +255,11 @@ void Bootstrap::HandlePingMessage(MessagePingBoot* message, string sourceAddress
             //If it has performance measures
             if (pingType == PING_BOOT_PERF)
             {
+            	/*
+            	 * controle de hit_count para geração de novo out
+            	 */
+
+
                 uint8_t indexPerfStart = 8;
                 MessagePingBootPerf* messageWrapper = new MessagePingBootPerf(message);
                 pingHeader = messageWrapper->GetHeaderValues();
@@ -314,6 +310,25 @@ void Bootstrap::HandlePingMessage(MessagePingBoot* message, string sourceAddress
                 PeerData pd = channelList[channelId].GetPeerData(srcPeer);
                 if (neighborhoodSize)
                     pd.SetUploadScore((pd.GetUploadScore() + peerUpload)/neighborhoodSize);
+
+                ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+                /*
+                 * Tecnica de overlay Free Rider Slice
+                 * geração de novos OUT e OUT-FREE
+                 */
+
+                channelList[channelId].GetPeerData(srcPeer).DecHit_count();
+                if ((XPConfig::Instance()->GetBool("dynamicTopologyArrangement") and (channelList[channelId].GetServer()->GetID() == srcPeer->GetID())))
+                {
+                	 channelList[channelId].DecHit_count();
+                     if ((channelList[channelId].GetHit_count() == 0) ){
+                     	channelList[channelId].SetHit_count(this->hit_count);
+                     	cout<<"reseta hit channel "<<channelList[channelId].GetHit_count()<<" e chama atualização"<<endl;
+                     	channelList[channelId].RenewOUTALL();
+                     }
+                }
+                ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
             }
         }
         else

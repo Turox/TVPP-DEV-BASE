@@ -51,7 +51,8 @@ class Bootstrap
         * @param string 
         * @param int Max TTLChannel value
         */
-        Bootstrap(string udpPort, string peerlistSelectorStrategy, unsigned int peerListSharedSize, uint8_t minimumBandwidth, uint8_t minimumBandwidth_FREE, uint16_t hit_count);
+        Bootstrap(string udpPort, string peerlistSelectorStrategy, unsigned int peerListSharedSize, uint8_t minimumBandwidth,
+        		  uint8_t minimumBandwidth_FREE, uint16_t hit_count, uint16_t timeNewOutDelayStarts);
         void TCPStart(const char *);
         void UDPStart();
         void UDPReceive();
@@ -76,6 +77,7 @@ class Bootstrap
         unsigned int minimumBandwidth;
         unsigned int minimumBandwidth_FREE;
         uint16_t hit_count;
+        uint16_t timeNewOutDelayStarts;
 
         boost::mutex channelListMutex;
         FILE *pfile;
