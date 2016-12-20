@@ -22,12 +22,13 @@ PeerData::PeerData(Peer* peer, int ttlIn, int ttlOut, int ttlChannel, int size) 
     this->hit_count=0;
 }
 
-void PeerData::inc_peerSentChunks (){
-	this->peerSentChunks++;
+void PeerData::inc_peerSentChunks (int value){
+	this->peerSentChunks = this->peerSentChunks + value;
 }
 uint32_t PeerData::Get_peerSentChunks(){
 	return this->peerSentChunks;
 }
+
 
 /** Retorna o TTL*****************/
 int PeerData::GetTTLIn()

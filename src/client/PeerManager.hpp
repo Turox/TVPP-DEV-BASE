@@ -92,6 +92,7 @@ class PeerManager
 
 	void CheckPeerList();
     void ShowPeerList();
+
 };
 #endif
 

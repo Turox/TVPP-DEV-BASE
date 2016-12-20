@@ -23,7 +23,7 @@ class Channel
         * Constructor
         * @param idServer server ip and port (ip:port)
         */
-        Channel(unsigned int channelId = 0, Peer* serverPeer = NULL);
+        Channel(unsigned int channelId = 0, Peer* serverPeer = NULL, uint8_t inCommon = 0, uint8_t inFree = 0, uint8_t percentPeersInClass = 0, uint8_t classAmount = 0);
 
         ChunkUniqueID GetServerNewestChunkID();
 		void SetServerNewestChunkID(ChunkUniqueID serverNewestChunkID);
@@ -61,6 +61,11 @@ class Channel
         Peer* serverPeer; 
         map<string, PeerData> peerList;
         uint16_t hit_count;
+
+        uint8_t inCommon;
+        uint8_t inFree;
+        uint8_t percentPeersInClass;
+        uint8_t classAmount;
 
 		ChunkUniqueID serverNewestChunkID;
         int serverEstimatedStreamRate;

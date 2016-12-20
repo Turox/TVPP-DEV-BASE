@@ -1,6 +1,12 @@
 #include "Channel.hpp"
 
-Channel::Channel(unsigned int channelId, Peer* serverPeer) 
+//extern bool pairCompare(PairStrInt a, PairStrInt b);
+//extern void sortPairStrIntVec(std::vector<PairStrInt>& vec);
+
+static bool pairCompare(PairStrInt a, PairStrInt b){ return (a.second > b.second);}
+static void sortPairStrIntVec(std::vector<PairStrInt>& vec){std::sort(vec.begin(), vec.end(), pairCompare);}
+
+Channel::Channel(unsigned int channelId, Peer* serverPeer, uint8_t inCommon, uint8_t inFree, uint8_t percentPeersInClass , uint8_t classAmount )
 {
     if (channelId != 0 || serverPeer != NULL) //Avoid creation by map[]
     {
@@ -9,6 +15,11 @@ Channel::Channel(unsigned int channelId, Peer* serverPeer)
         if(serverPeer)
             AddPeer(serverPeer);
         serverEstimatedStreamRate = 0;
+
+        this->inCommon = inCommon;
+        this->inFree = inFree;
+        this->percentPeersInClass = percentPeersInClass;
+        this->classAmount = classAmount;
 
         //Logging
         struct tm * timeinfo;
@@ -28,19 +39,32 @@ Channel::Channel(unsigned int channelId, Peer* serverPeer)
     } 
 }
 
-void Channel::RenewOUTALL(){
+void Channel::RenewOUTALL()
+{
+	std::vector<std::string> freeRiderVector;
+	std::vector<PairStrInt> ordinaryNodeVector;
 
-    for (map<string, PeerData>::iterator i = peerList.begin(); i != peerList.end(); i++){
-    	if (i->second.GetSizePeerListOutInformed() > 0){
-    		cout<<"atualizar out para "<<i->second.GetPeer()->GetID()<<endl;
-    		i->second.SetSizePeerListOutInformed(i->second.GetSizePeerListOutNew());
-    		i->second.SetSizePeerListOutInformed_FREE(i->second.GetSizePeerListOutNew_FREE());
-
-    		//calcula novo
-    	    i->second.SetSizePeerListOutNew(4);
-    	    i->second.SetSizePeerListOutNew_FREE(3);
+    for (map<string, PeerData>::iterator i = peerList.begin(); i != peerList.end(); i++)
+    {
+    	if (i->second.GetSizePeerListOutInformed() > 0)
+    	{
+    		ordinaryNodeVector.push_back(i->second.GetPairStrInt());
+    		i->second.inc_peerSentChunks((i->second.Get_peerSentChunks()) *(-1));  //zera contribuição
     	}
+    	else
+    		freeRiderVector.push_back(i->first);
     }
+    sortPairStrIntVec(ordinaryNodeVector);
+
+
+
+
+  //  i->second.SetSizePeerListOutInformed(i->second.GetSizePeerListOutNew());
+	//i->second.SetSizePeerListOutInformed_FREE(i->second.GetSizePeerListOutNew_FREE());
+
+   // i->second.SetSizePeerListOutNew(4);
+   // i->second.SetSizePeerListOutNew_FREE(3);
+
 }
 
 

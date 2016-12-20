@@ -3,7 +3,9 @@
 using namespace std;
 
 /** Construtor **/
-Bootstrap::Bootstrap(string udpPort, string peerlistSelectorStrategy, unsigned int peerListSharedSize, uint8_t minimumBandwidth, uint8_t minimumBandwidth_FREE,uint16_t hit_count,  uint16_t timeNewOutDelayStarts)
+Bootstrap::Bootstrap(string udpPort, string peerlistSelectorStrategy, unsigned int peerListSharedSize, uint8_t minimumBandwidth,
+		             uint8_t minimumBandwidth_FREE,uint16_t hit_count,  uint16_t timeNewOutDelayStarts,
+					 uint8_t inCommon, uint8_t inFree, uint8_t percentPeersInClass , uint8_t classAmount)
 {
     if (peerlistSelectorStrategy == "TournamentStrategy")
         this->peerlistSelectorStrategy = new TournamentStrategy();
@@ -16,8 +18,16 @@ Bootstrap::Bootstrap(string udpPort, string peerlistSelectorStrategy, unsigned i
     this->peerListSharedSize=peerListSharedSize;
     this->minimumBandwidth = minimumBandwidth;
     this->minimumBandwidth_FREE = minimumBandwidth_FREE;
+
+    //for channel
     this->hit_count = hit_count;
     this->timeNewOutDelayStarts = timeNewOutDelayStarts;
+    this->inCommon = inCommon;
+    this->inFree = inFree;
+    this->percentPeersInClass = percentPeersInClass;
+    this->classAmount = classAmount;
+
+
 
     udp = new UDPServer(boost::lexical_cast<uint32_t>(udpPort),0,NULL,new FIFOMessageScheduler());
 
@@ -26,6 +36,8 @@ Bootstrap::Bootstrap(string udpPort, string peerlistSelectorStrategy, unsigned i
     time_t boot_ID;
 	time(&boot_ID);
 	this->bootStrap_ID = boot_ID;
+
+
 
 }
 
@@ -75,8 +87,8 @@ Message *Bootstrap::HandleChannelMessage(MessageChannel* message, string sourceA
         case CHANNEL_CREATE:
             if (channelList.find(channelId) == channelList.end())
             {
-                channelList[channelId] = Channel(channelId, source);
-                channelList[channelId].SetHit_count(this->hit_count + this->timeNewOutDelayStarts);  // configura hit do canal com atraso para estabelecer a rede
+                channelList[channelId] = Channel(channelId, source, this->inCommon, this->inFree, this->percentPeersInClass, this->classAmount);
+                channelList[channelId].SetHit_count(this->hit_count + this->timeNewOutDelayStarts);
             }
             else
             {
@@ -266,9 +278,10 @@ void Bootstrap::HandlePingMessage(MessagePingBoot* message, string sourceAddress
 
                 time_t rawtime;
                 time(&rawtime);
+                int peerChunkSent = pingHeader[indexPerfStart + 1];
                 string performanceLog = sourceAddress + " ";                                                //PeerID
                 performanceLog += boost::lexical_cast<string>(pingHeader[indexPerfStart + 0]) + " ";        //ChunkGenerated
-                performanceLog += boost::lexical_cast<string>(pingHeader[indexPerfStart + 1]) + " ";        //ChunkSent
+                performanceLog += boost::lexical_cast<string>(peerChunkSent) + " ";                         //ChunkSent
                 performanceLog += boost::lexical_cast<string>(pingHeader[indexPerfStart + 2]) + " ";        //ChunkReceived
                 performanceLog += boost::lexical_cast<string>(pingHeader[indexPerfStart + 3]) + " ";        //ChunkOverload
                 performanceLog += boost::lexical_cast<string>(pingHeader[indexPerfStart + 4]) + " ";        //RequestSent
@@ -318,6 +331,7 @@ void Bootstrap::HandlePingMessage(MessagePingBoot* message, string sourceAddress
                  */
 
                 channelList[channelId].GetPeerData(srcPeer).DecHit_count();
+                channelList[channelId].GetPeerData(srcPeer).inc_peerSentChunks(peerChunkSent);
                 if ((XPConfig::Instance()->GetBool("dynamicTopologyArrangement") and (channelList[channelId].GetServer()->GetID() == srcPeer->GetID())))
                 {
                 	 channelList[channelId].DecHit_count();

@@ -26,7 +26,6 @@ int main(int argc, char* argv[]) {
     string myUDPPort = UDPPORT;
     string peerlistSelectorStrategy = "";
 
-    // ECM ***********
 
     unsigned int peerListSharedSize = 20;
     uint8_t minimumBandwidth = 0;               // minimum bandwidth to share peer in peerListShare
@@ -34,6 +33,11 @@ int main(int argc, char* argv[]) {
     uint16_t timeToSetNewOut = 0;
     uint16_t timeNewOutDelayStarts = 60/10;         // 60 segundos
 
+    //for channel
+    uint8_t inCommon = 10;
+    uint8_t inFree = 10;
+    uint8_t percentPeersInClass = 20;
+    uint8_t classAmount = 3 ;
 
     string arg1 = "";
     if( argv[1] != NULL)
@@ -44,20 +48,28 @@ int main(int argc, char* argv[]) {
         cout << "\nUsage: ./bootstrap [OPTIONS]" <<endl;
         cout <<"\nMain operation mode:"<<endl;
         cout <<"\n";
-        cout <<"  -tcpPort                     define the tcp bootstrap port (default: "<<myTCPPort<<")"<<endl;
-        cout <<"  -udpPort                     define the tcp bootstrap port (default: "<<myUDPPort<<")"<<endl;
-        cout <<"  -peerlistSelectorStrategy    define the tcp bootstrap port (default: RandomStrategy)"<<endl;
-        cout <<"  -peerListSharedSize          define the peer quantity to be shared each time between bootstrap and peer ()(default: "<<peerListSharedSize<<")"<<endl;
-        cout <<"  -minimalOUTsend              define the minimum OUT to share a peer                     (defautl: "<<(int)minimumBandwidth<<")"<<endl;
-        cout <<"  -minimalOUTFREEsend          define the minimum OUT_FRER to share a peer to Free Rider  (defautl: "<<(int)minimumBandwidth_FREE<<")"<<endl;
+        cout <<"  -tcpPort                     tcp bootstrap port                              (default: "<<myTCPPort<<")"<<endl;
+        cout <<"  -udpPort                     tcp bootstrap port                              (default: "<<myUDPPort<<")"<<endl;
+        cout <<"  -peerlistSelectorStrategy    tcp bootstrap port                              (default: RandomStrategy)"<<endl;
+        cout <<"  -peerListSharedSize          peer quantity to be shared                      (default: "<<peerListSharedSize<<")"<<endl;
+        cout <<"  -minimalOUTsend              minimum OUT to share a peer                     (defautl: "<<(int)minimumBandwidth<<")"<<endl;
+        cout <<"  -minimalOUTFREEsend          minimum OUT_FRER to share a peer to Free Rider  (defautl: "<<(int)minimumBandwidth_FREE<<")"<<endl;
         cout <<"                               **(If chosen this automatically sets -separatedFreeOutList=true)"<<endl;
-        cout <<"  -timeToSetNewOut             define bootstrap' s wait time, in seconds, before calculate new OUT and OUT-FREE(default: "<<timeToSetNewOut<<")"<<endl;
-        cout <<"                                **(If chosen this automatically sets --dynamicTopologyArrangement)"<<endl;
-        cout <<"  -timeNewOutDelayStarts        define bootstrap' s delay to starts timeToSetNewOut, in seconds, before calculate new OUT and OUT-FREE(default: "<<timeNewOutDelayStarts<<")"<<endl;
         cout <<endl;
-        cout <<"  --separatedFreeOutList       share peer per listOut or ListOut_FREE "<<endl;
-        cout <<"  --isolaVirtutalPeerSameIP    permit only different IP partner "<<endl;
-        cout <<"  --dynamicTopologyArrangement permit new OUT and OUT-FREE size from bootastrap"<<endl;
+        cout <<"   FOR CHANNEL FREE RIDER SLICE TECHNIQUE"                                <<endl;
+        cout <<endl;
+        cout <<"  -inCommon                    common peers'  IN configuration                 (defautl:"<<inCommon<<")"<<endl;
+        cout <<"  -inFree                      free rider peers'  IN configuration             (defautl:"<<inFree<<")"<<endl;
+        cout <<"  -percentPeersInClass         minimum peers' percentage in each class         (defautl:"<<percentPeersInClass<<"%)"<<endl;
+        cout <<"  -classAmount                 number of class peers' contribution             (defautl:"<<classAmount<<")"<<endl;
+        cout <<"  -timeToSetNewOut             seconds before calculate news OUT e OUT-FREE    (default: "<<timeToSetNewOut<<")"<<endl;
+        cout <<"                                **(automatically sets --dynamicTopologyArrangement)"<<endl;
+        cout <<"  -timeNewOutDelayStarts       network time wait before starts timeToSetNewOut (defautl:"<<timeNewOutDelayStarts<<")"<<endl;
+        cout <<"  --dynamicTopologyArrangement enable free rider slice technique         "<<endl;
+        cout <<endl;
+        cout <<"  --separatedFreeOutList       share peer per listOut or ListOut_FREE    "<<endl;
+        cout <<"  --isolaVirtutalPeerSameIP    permit only different IP partner          "<<endl;
+
         exit(1);
     }
 
@@ -108,8 +120,22 @@ int main(int argc, char* argv[]) {
             timeNewOutDelayStarts = atoi(argv[optind]);
             timeNewOutDelayStarts = timeNewOutDelayStarts / 10;
          }
-
-
+        else if (swtc=="-inCommon") {
+            optind++;
+            inCommon = atoi(argv[optind]);
+         }
+        else if (swtc=="-inFree") {
+            optind++;
+            inFree = atoi(argv[optind]);
+         }
+        else if (swtc=="-percentPeersInClass") {
+            optind++;
+            percentPeersInClass = atoi(argv[optind]);
+         }
+        else if (swtc=="-classAmount") {
+            optind++;
+            classAmount = atoi(argv[optind]);
+         }
         else if (swtc=="--isolaVirtutalPeerSameIP")
         {
             XPConfig::Instance()->SetBool("isolaVirtutalPeerSameIP", true);
@@ -128,7 +154,8 @@ int main(int argc, char* argv[]) {
     }
 
     XPConfig::Instance()->OpenConfigFile("");
-    Bootstrap bootstrapInstance(myUDPPort, peerlistSelectorStrategy, peerListSharedSize, minimumBandwidth, minimumBandwidth_FREE, timeToSetNewOut, timeNewOutDelayStarts);
+    Bootstrap bootstrapInstance(myUDPPort, peerlistSelectorStrategy, peerListSharedSize, minimumBandwidth, minimumBandwidth_FREE, timeToSetNewOut, timeNewOutDelayStarts,
+    		                    inCommon, inFree, percentPeersInClass, classAmount);
     
     boost::thread TTCPSERVER(boost::bind(&Bootstrap::TCPStart, &bootstrapInstance, myTCPPort.c_str()));
     boost::thread TUDPSERVER(boost::bind(&Bootstrap::UDPStart, &bootstrapInstance));

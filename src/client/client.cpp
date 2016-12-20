@@ -830,7 +830,6 @@ void Client::HandleDataMessage(MessageData* message, string sourceAddress, uint3
     }
     if (messageReply)
     {
-        //udp->Send(sourceAddress, messageReply->GetFirstByte(), messageReply->GetSize());
         udp->EnqueueSend(sourceAddress, messageReply);
     }    
 }

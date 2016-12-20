@@ -4,8 +4,10 @@
  */
 
 #include "PeerManager.hpp"
-bool pairCompare(PairStrInt a, PairStrInt b){ return (a.second > b.second);}
-void sortPairStrIntVec(std::vector<PairStrInt>& vec){std::sort(vec.begin(), vec.end(), pairCompare);}
+
+static bool pairCompare(PairStrInt a, PairStrInt b){ return (a.second > b.second);}
+static void sortPairStrIntVec(std::vector<PairStrInt>& vec){std::sort(vec.begin(), vec.end(), pairCompare);}
+
 
 PeerManager::PeerManager()
 {
@@ -54,9 +56,8 @@ void PeerManager::SetNewMMaxActivePeersOut(int newMaxActivePeers,set<string>* pe
     peerActive->clear();
 
     cout<<"dentro do semáforo"<<endl;
-    for (int i =0;i<newMaxActivePeers; i++)
-    	if (i < auxOutList.size()){
-    	     cout <<"inserindo "<<auxOutList[i].first<<endl;
+    for (int i = 0;i<newMaxActivePeers; i++)
+    	if (i < (int)auxOutList.size()){
     	     peerActive->insert(auxOutList[i].first);
     }
 	peerActiveLock.unlock();

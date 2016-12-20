@@ -76,7 +76,7 @@ class PeerData
         uint16_t GetHit_count();
 
 
-        void inc_peerSentChunks ();
+        void inc_peerSentChunks (int value = 1);
         uint32_t Get_peerSentChunks();
 
         ChunkUniqueID GetChunkMapHead();
