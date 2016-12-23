@@ -1,12 +1,13 @@
 #include "Channel.hpp"
 
-//extern bool pairCompare(PairStrInt a, PairStrInt b);
-//extern void sortPairStrIntVec(std::vector<PairStrInt>& vec);
-
 static bool pairCompare(PairStrInt a, PairStrInt b){ return (a.second > b.second);}
 static void sortPairStrIntVec(std::vector<PairStrInt>& vec){std::sort(vec.begin(), vec.end(), pairCompare);}
 
-Channel::Channel(unsigned int channelId, Peer* serverPeer, uint8_t inCommon, uint8_t inFree, uint8_t percentPeersInClass , uint8_t classAmount )
+static bool pairCompareTopology(PairTopologyInt a, PairTopologyInt b){ return (a.second > b.second);}
+static void sortPairTopologyClassesIntVec(std::vector<PairTopologyInt>& vec){std::sort(vec.begin(), vec.end(), pairCompareTopology);}
+
+
+Channel::Channel(unsigned int channelId, Peer* serverPeer, bool dynamicTopologyArrangement)
 {
     if (channelId != 0 || serverPeer != NULL) //Avoid creation by map[]
     {
@@ -16,10 +17,28 @@ Channel::Channel(unsigned int channelId, Peer* serverPeer, uint8_t inCommon, uin
             AddPeer(serverPeer);
         serverEstimatedStreamRate = 0;
 
-        this->inCommon = inCommon;
-        this->inFree = inFree;
-        this->percentPeersInClass = percentPeersInClass;
-        this->classAmount = classAmount;
+        /*
+         * ler de arquivo de configuração
+         */
+        this->firstTimeOverlay = true;
+        this->indicateClassPosition = false;
+        this->dynamicTopologyArrangement = dynamicTopologyArrangement;
+        if (dynamicTopologyArrangement){
+
+            TopologyData* NewClass;
+
+            NewClass = new TopologyData(0, 20, 0, 0, 0);          // 0.0Mb/s
+			classTopologySettings[classA] =(*NewClass);
+
+            NewClass = new TopologyData(131072, 20, 1, 38, 40);   // [1.0Mb/s, 2.0Mb/s)
+			classTopologySettings[classB] = (*NewClass);
+
+            NewClass = new TopologyData(262144, 20, 18, 22, 30);  // [2.0Mb/s, 3.5Mb/s)
+			classTopologySettings[classC] = (*NewClass);
+
+            NewClass = new TopologyData(458752, 20, 46, 0, 15);   // >= 3.5Mb/s
+			classTopologySettings[classD] = (*NewClass);
+        }
 
         //Logging
         struct tm * timeinfo;
@@ -38,35 +57,79 @@ Channel::Channel(unsigned int channelId, Peer* serverPeer, uint8_t inCommon, uin
         overlayFile = fopen(logFilenameOverlay.c_str(),"w");
     } 
 }
+int Channel::NormalizeClasses(TopologyClasses classRef, vector<PairStrInt>* ordinaryNodeVector, int start, int stop){
+    int contador = 0;
+	for (vector<PairStrInt>::iterator common = ordinaryNodeVector->begin() + start; common != ordinaryNodeVector->begin() + stop ; common++)
+	{
+		peerList[common->first].SetSizePeerListOutOld(peerList[common->first].GetSizePeerListOutInformed());
+		peerList[common->first].SetSizePeerListOutInformed(classTopologySettings[classRef].GetOut());
+
+		peerList[common->first].SetSizePeerListOutOld_FREE(peerList[common->first].GetSizePeerListOutInformed_FREE());
+		peerList[common->first].SetSizePeerListOutInformed_FREE(classTopologySettings[classRef].GetOut_free());
+		contador++;
+	}
+	return contador;
+}
 
 void Channel::RenewOUTALL()
 {
-	std::vector<std::string> freeRiderVector;
-	std::vector<PairStrInt> ordinaryNodeVector;
+	if (this->firstTimeOverlay)
+	{
+	    for (map<string, PeerData>::iterator i = peerList.begin(); i != peerList.end(); i++)
+	        i->second.Set_peerSentChunks(0);
+	    firstTimeOverlay = false;
+	    return;
+	}
+	else
+	{
+		std::vector<std::string> freeRiderVector;
+		std::vector<PairStrInt> ordinaryNodeVector;
 
-    for (map<string, PeerData>::iterator i = peerList.begin(); i != peerList.end(); i++)
-    {
-    	if (i->second.GetSizePeerListOutInformed() > 0)
-    	{
-    		ordinaryNodeVector.push_back(i->second.GetPairStrInt());
-    		i->second.inc_peerSentChunks((i->second.Get_peerSentChunks()) *(-1));  //zera contribuição
-    	}
-    	else
-    		freeRiderVector.push_back(i->first);
-    }
-    sortPairStrIntVec(ordinaryNodeVector);
+		this->GetPeerData(this->GetServer()).Set_peerSentChunks(0);
+		for (map<string, PeerData>::iterator i = peerList.begin(); i != peerList.end(); i++)
+		{
+			if ((i->second.GetSizePeerListOutInformed() > 0) or
+					(i->second.GetSizePeerListOutInformed_FREE() > 0))
+					{
+    				if ((i->second.GetHit_count() == 0) and (i->first != this->GetServer()->GetID()))
+    				{
+    					ordinaryNodeVector.push_back(i->second.GetPairStrInt());
+    					i->second.Set_peerSentChunks(0);
+    				}
+			}
+			else
+				freeRiderVector.push_back(i->first);
+		}
 
+		sortPairStrIntVec(ordinaryNodeVector);        //Ordem decrescente de contribuição
+		int commonSize = ordinaryNodeVector.size();
 
+		/****** CKmeans application *****/
+		int posClassD = commonSize * classTopologySettings[classD].GetPercentOfPeer()/100;
+		int posClassB = commonSize * (100 - classTopologySettings[classC].GetPercentOfPeer() )/100;
 
+		cout<<"normalização. Vetor Size: "<<commonSize<<" ClasseD index: "<<posClassD<<" ClassB index: "<<posClassB<<endl;
 
-  //  i->second.SetSizePeerListOutInformed(i->second.GetSizePeerListOutNew());
-	//i->second.SetSizePeerListOutInformed_FREE(i->second.GetSizePeerListOutNew_FREE());
+		int count_peerClassD = this->NormalizeClasses(classD, &ordinaryNodeVector, 0        , posClassD);
+		int count_peerClassC = this->NormalizeClasses(classC, &ordinaryNodeVector, posClassD, posClassB);
+		int count_peerClassB = this->NormalizeClasses(classB, &ordinaryNodeVector, posClassB, commonSize);
 
-   // i->second.SetSizePeerListOutNew(4);
-   // i->second.SetSizePeerListOutNew_FREE(3);
+		cout<<"Normalized Classes ["<<count_peerClassD<<", "<<count_peerClassC<<", "<<count_peerClassB<<", "<<freeRiderVector.size()<<"]"<<endl;
 
-}
+        /*
+		int totalIn_Free = 0, totalOut_Free = 0, totalIn_Common = 0, totalOut_Common = 0;
+		totalIn_Free = freeRiderVector.size() * classTopologySettings["classA"].GetIn();
+		totalIn_Common = count_peerClassD * classTopologySettings["classD"].GetIn() +
+			         count_peerClassC * classTopologySettings["classC"].GetIn() +
+			         count_peerClassB * classTopologySettings["classB"].GetIn();
 
+		for (vector<PairStrInt>::iterator common = ordinaryNodeVector.begin(); common != ordinaryNodeVector.end(); common++){
+			totalOut_Common = totalOut_Common  + peerList[common->first].GetSizePeerListOutInformed();
+			totalOut_Free   = totalOut_Free    + peerList[common->first].GetSizePeerListOutInformed_FREE();	}
+		*/
+	}
+
+ }
 
 
 void Channel::SetServerNewestChunkID(ChunkUniqueID serverNewestChunkID)
@@ -113,6 +176,32 @@ void Channel::AddPeer(Peer* peer, uint16_t hit_count)
 {
     peerList[peer->GetID()] = PeerData(peer);
     peerList[peer->GetID()].SetHit_count(hit_count);
+
+    if ((this->dynamicTopologyArrangement) and
+    		(peer->GetID() != this->GetServer()->GetID()) and            // non server
+    	    (peerList[peer->GetID()].GetLimitUpload() > 0))              // common peer
+    	{
+    	if (this->indicateClassPosition)                                 // indicator selected
+    	{
+    		TopologyClasses classPeer = this->SugestedClass(peerList[peer->GetID()].GetLimitUpload());
+    		if (classPeer != error) {
+    			peerList[peer->GetID()].SetSizePeerListOutInformed(this->classTopologySettings[classPeer].GetOut());
+    			peerList[peer->GetID()].SetSizePeerListOutInformed_FREE(this->classTopologySettings[classPeer].GetOut_free());
+    			peerList[peer->GetID()].SetSizePeerListOutOld(this->classTopologySettings[classPeer].GetOut());
+    			peerList[peer->GetID()].SetSizePeerListOutOld_FREE(this->classTopologySettings[classPeer].GetOut_free());
+    		}
+
+    	}
+    	else{
+    		TopologyClasses classPeer = classC;
+        	peerList[peer->GetID()].SetSizePeerListOutInformed(this->classTopologySettings[classPeer].GetOut());
+        	peerList[peer->GetID()].SetSizePeerListOutInformed_FREE(this->classTopologySettings[classPeer].GetOut_free());
+        	peerList[peer->GetID()].SetSizePeerListOutOld(this->classTopologySettings[classPeer].GetOut());
+        	peerList[peer->GetID()].SetSizePeerListOutOld_FREE(this->classTopologySettings[classPeer].GetOut_free());
+
+    	}
+
+    }
 
 }
 
@@ -179,7 +268,6 @@ vector<PeerData*> Channel::SelectPeerList(Strategy* strategy, Peer* srcPeer, uns
     {
         strategy->Execute(&allPeers, srcPeer, peerQuantity);
         selectedPeers.insert(selectedPeers.begin(),allPeers.begin(),allPeers.begin()+peerQuantity);
-        //return selectedPeers;
     }
 
   	cout<<"sending "<<selectedPeers.size()<<" peer to "<<srcPeer->GetID()<<"'s neighbor"<<endl;
@@ -222,7 +310,6 @@ void Channel::printChannelProfile()
 }
 
 
-
 FILE* Channel::GetPerformanceFile()
 {
     return performanceFile;
@@ -233,15 +320,39 @@ FILE* Channel::GetOverlayFile()
     return overlayFile;
 }
 
-void Channel::SetHit_count(uint16_t hit_count){
-	this->hit_count = hit_count;
-}
-void Channel::DecHit_count(){
-	if (this->hit_count >0)
-	    this->hit_count--;
+void Channel::SetIndicateClassPosition(bool indicateClassPosition){
+	this->indicateClassPosition = indicateClassPosition;
 }
 
-uint16_t Channel::GetHit_count(){
-	return this->hit_count;
+TopologyClasses Channel::SugestedClass(int bandwidth){
+	if (classTopologySettings.size() <= 0) {cout<<"Class peer suggest error"<<endl; return error;}
+	vector<PairTopologyInt> vectorClasses;
+	for (map<TopologyClasses,TopologyData>::iterator i = classTopologySettings.end(); i != classTopologySettings.begin(); i--){
+	   vectorClasses.push_back(PairTopologyInt(i->first,i->second.GetJoinMinimunBandwidth()));
+	}
+	sortPairTopologyClassesIntVec(vectorClasses);
+    for (vector<PairTopologyInt>::iterator j = vectorClasses.begin(); j != vectorClasses.end(); j++){
+  	  if ((int)j->second <= bandwidth)
+ 		  return j->first;
+    }
+	return error;
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 

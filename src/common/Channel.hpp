@@ -9,13 +9,16 @@
 #include <vector>
 #include <map>
 #include "PeerData.hpp"
+#include "TopologyData.hpp"
 #include "Strategy/Strategy.hpp"
+
 
 using namespace std;
 
 /**
 * This class implements the Channel abstraction
 */
+
 class Channel
 {
     public:
@@ -23,7 +26,7 @@ class Channel
         * Constructor
         * @param idServer server ip and port (ip:port)
         */
-        Channel(unsigned int channelId = 0, Peer* serverPeer = NULL, uint8_t inCommon = 0, uint8_t inFree = 0, uint8_t percentPeersInClass = 0, uint8_t classAmount = 0);
+        Channel(unsigned int channelId = 0, Peer* serverPeer = NULL, bool dynamicTopologyArrangement = false);
 
         ChunkUniqueID GetServerNewestChunkID();
 		void SetServerNewestChunkID(ChunkUniqueID serverNewestChunkID);
@@ -38,10 +41,12 @@ class Channel
 		void RemovePeer(string peerId);
 		PeerData& GetPeerData(Peer* peer);
         time_t GetCreationTime();
-        void SetHit_count(uint16_t hit_count);
-        void DecHit_count();
-        uint16_t GetHit_count();
+
+        //topology experiments
         void RenewOUTALL();
+        int NormalizeClasses(TopologyClasses classRef, vector<PairStrInt>* ordinaryNodeVector, int start, int stop);
+        void SetIndicateClassPosition(bool indicateClassPosition);
+        TopologyClasses SugestedClass(int bandwidth);
 
 
         vector<PeerData*> SelectPeerList(Strategy* strategy, Peer* srcPeer, unsigned int peerQuantity, bool virtualPeer,
@@ -53,6 +58,7 @@ class Channel
 
         FILE* GetPerformanceFile();
         FILE* GetOverlayFile();
+        bool firstTimeOverlay;
 		
 		friend bool operator<(const Channel &a, const Channel &b) {return a.channelId<b.channelId;};
 		
@@ -60,12 +66,10 @@ class Channel
         unsigned int channelId;
         Peer* serverPeer; 
         map<string, PeerData> peerList;
-        uint16_t hit_count;
 
-        uint8_t inCommon;
-        uint8_t inFree;
-        uint8_t percentPeersInClass;
-        uint8_t classAmount;
+        map <TopologyClasses,TopologyData> classTopologySettings;
+        bool dynamicTopologyArrangement;
+        bool indicateClassPosition;
 
 		ChunkUniqueID serverNewestChunkID;
         int serverEstimatedStreamRate;
@@ -75,7 +79,6 @@ class Channel
         FILE* performanceFile;
         FILE* overlayFile;
 };
-
 
 #endif // CHANNEL_H
 

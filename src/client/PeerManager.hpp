@@ -57,7 +57,7 @@ class PeerManager
 	void SetMaxActivePeersOut(unsigned int maxActivePeers);
 	void SetMaxActivePeersOutFREE(unsigned int maxActivePeersFREE);
 	void SetNewMMaxActivePeersOut(int newMaxActivePeers,set<string>* peerActiveOut);
-
+    bool isActiveOut_free (set<string>* outList);
 
 
 	void SetMaxOutFreeToBeSeparated(unsigned int outLimitToSeparateFree);

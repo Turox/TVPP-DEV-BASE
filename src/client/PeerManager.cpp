@@ -127,7 +127,7 @@ bool PeerManager::ConnectPeer(string peer, set<string>* peerActive)
 			   list = "In";
 		    }
 		    else{
-		    	this->peerList[peer].SetTTLOut(TTLOut);
+		    	this->peerList[peer].SetTTLOut(TTLOut, this->isActiveOut_free(peerActive));
 		    	if (*(peerActive) == peerActiveOut){list = "Out";}
     		    else {list = "Out-FREE";}
 		    }
@@ -201,7 +201,7 @@ void PeerManager::DisconnectPeer(string peer, set<string>* peerActive)
 void PeerManager::RemovePeer(string peer)
 {
 	boost::mutex::scoped_lock peerListLock(peerListMutex);
-	cout<<"Peer "<<peer<<" removed from PeerList: TTLIn["<<peerList[peer].GetTTLIn()<<"] TTLOut["<<peerList[peer].GetTTLOut()<<"]"<<endl;
+	cout<<"Peer "<<peer<<" removed from PeerList: TTLIn["<<peerList[peer].GetTTLIn()<<"] TTLOut["<<peerList[peer].GetTTLOut(false)<<"] TTLOutFREE["<<peerList[peer].GetTTLOut(true)<<"]"<<endl;
 	peerList.erase(peer);
 	peerListLock.unlock();
 }
@@ -340,8 +340,8 @@ void PeerManager::CheckPeerList()
     	isPeerActiveOut = peerActiveOut.find(*i) != peerActiveOut.end();
     	if (isPeerActiveOut)
     	{
-    		peerList[*i].DecTTLOut();
-    		if (peerList[*i].GetTTLOut() <= 0)
+    		peerList[*i].DecTTLOut(false);
+    		if (peerList[*i].GetTTLOut(false) <= 0)
     	    {
     			desconectaPeerOut.insert(*i);
     			isPeerActiveOut = false;
@@ -351,8 +351,8 @@ void PeerManager::CheckPeerList()
     	isPeerActiveOutFREE = peerActiveOutFREE.find(*i) != peerActiveOutFREE.end();
     	    	if (isPeerActiveOutFREE)
     	    	{
-    	    		peerList[*i].DecTTLOut();
-    	    		if (peerList[*i].GetTTLOut() <= 0)
+    	    		peerList[*i].DecTTLOut(true);
+    	    		if (peerList[*i].GetTTLOut(true) <= 0)
     	    	    {
     	    			desconectaPeerOutFREE.insert(*i);
     	    			isPeerActiveOutFREE = false;
@@ -405,7 +405,7 @@ int PeerManager::showPeerActive(set<string>* peerActive)
         }
         else
         {
-        	ttl = peerList[*i].GetTTLOut();
+        	ttl = peerList[*i].GetTTLOut(this->isActiveOut_free(peerActive));
         	ttlRotulo == "TTLOut";
         }
 
@@ -428,6 +428,17 @@ void PeerManager::ShowPeerList()
 
     cout<<"Total In ["<<k<<"]  Total Out ["<<j<<"] Total Out-FREE ["<<m<<"]"<<endl;
     cout<<"Total different Peers Active: ["<<this->GetPeerActiveSizeTotal()<<"] "<<endl<<endl;
+
+    cout<<"OUTLIST: ";
+    for (set<string>::iterator out = peerActiveOut.begin(); out != peerActiveOut.end(); out++)
+		cout<<*out<<" ";
+	cout<<endl;
+    cout<<"OUTFREELIST: ";
+    for (set<string>::iterator out = peerActiveOutFREE.begin(); out != peerActiveOutFREE.end(); out++)
+		cout<<*out<<" ";
+
+
+
 	j = 0;
 	cout<<endl<<"- Peer List Total -"<<endl;
 	boost::mutex::scoped_lock peerListLock(peerListMutex);
@@ -435,7 +446,7 @@ void PeerManager::ShowPeerList()
     for (map<string, PeerData>::iterator i = peerList.begin(); i != peerList.end(); i++, j++)
 	{
 		cout<<"Key: "<<i->first<< endl;
-		cout<<"ID: "<<i->second.GetPeer()->GetID()<<" Mode: "<<(int)i->second.GetMode()<<" TTLIn: "<<i->second.GetTTLIn() <<" TTLOut: "<<i->second.GetTTLOut() << " RTT(delay): " <<i->second.GetDelay()<< "s PR: "<<i->second.GetPendingRequests() << endl;
+		cout<<"ID: "<<i->second.GetPeer()->GetID()<<" Mode: "<<(int)i->second.GetMode()<<" TTLIn: "<<i->second.GetTTLIn() <<" TTLOut: "<<i->second.GetTTLOut(false) << " TTLOutFREE: "<<i->second.GetTTLOut(true) <<" RTT(delay): " <<i->second.GetDelay()<< "s PR: "<<i->second.GetPendingRequests() << endl;
 	}
 	peerListLock.unlock();
 	cout<<"Total PeerList: "<<j<<endl<<endl;
@@ -450,4 +461,7 @@ bool PeerManager::GetRemoveWorsePartner (){
 	return this->removeWorsePartner;
 }
 
+bool PeerManager::isActiveOut_free (set<string>* outList){
+	return outList == &peerActiveOutFREE;
+}
 

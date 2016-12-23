@@ -4,8 +4,7 @@ using namespace std;
 
 /** Construtor **/
 Bootstrap::Bootstrap(string udpPort, string peerlistSelectorStrategy, unsigned int peerListSharedSize, uint8_t minimumBandwidth,
-		             uint8_t minimumBandwidth_FREE,uint16_t hit_count,  uint16_t timeNewOutDelayStarts,
-					 uint8_t inCommon, uint8_t inFree, uint8_t percentPeersInClass , uint8_t classAmount)
+		             uint8_t minimumBandwidth_FREE,uint16_t hit_count,  uint16_t timeNewOutDelayStarts)
 {
     if (peerlistSelectorStrategy == "TournamentStrategy")
         this->peerlistSelectorStrategy = new TournamentStrategy();
@@ -22,10 +21,6 @@ Bootstrap::Bootstrap(string udpPort, string peerlistSelectorStrategy, unsigned i
     //for channel
     this->hit_count = hit_count;
     this->timeNewOutDelayStarts = timeNewOutDelayStarts;
-    this->inCommon = inCommon;
-    this->inFree = inFree;
-    this->percentPeersInClass = percentPeersInClass;
-    this->classAmount = classAmount;
 
 
 
@@ -69,7 +64,7 @@ Message *Bootstrap::HandleChannelMessage(MessageChannel* message, string sourceA
     uint32_t clientTime = channelHeader[5];
 	uint16_t sizePeerListOut = channelHeader[6];
 	uint16_t sizePeerListOut_FREE = channelHeader[7];
-	uint16_t limitUpload = channelHeader[8];
+	int limitUpload = channelHeader[8];
 
 	Peer* source = new Peer(sourceAddress, sizePeerListOut, sizePeerListOut_FREE,limitUpload);
 
@@ -87,8 +82,10 @@ Message *Bootstrap::HandleChannelMessage(MessageChannel* message, string sourceA
         case CHANNEL_CREATE:
             if (channelList.find(channelId) == channelList.end())
             {
-                channelList[channelId] = Channel(channelId, source, this->inCommon, this->inFree, this->percentPeersInClass, this->classAmount);
-                channelList[channelId].SetHit_count(this->hit_count + this->timeNewOutDelayStarts);
+                channelList[channelId] = Channel(channelId, source, XPConfig::Instance()->GetBool("dynamicTopologyArrangement"));
+                channelList[channelId].GetPeerData(source).SetHit_count(this->hit_count + this->timeNewOutDelayStarts);
+                channelList[channelId].SetIndicateClassPosition(XPConfig::Instance()->GetBool("indicateClassPosition"));
+                cout<<"hitserve "<<this->hit_count + this->timeNewOutDelayStarts<<endl;
             }
             else
             {
@@ -104,7 +101,7 @@ Message *Bootstrap::HandleChannelMessage(MessageChannel* message, string sourceA
             {
                 if (!channelList[channelId].HasPeer(source))
                 {
-                    channelList[channelId].AddPeer(source,this->hit_count);  // add o peer com o hit para não alterar o out dele até o hit_count = 0
+                    channelList[channelId].AddPeer(source,this->hit_count);
                 }
             }
             break;
@@ -125,11 +122,8 @@ Message *Bootstrap::HandleChannelMessage(MessageChannel* message, string sourceA
             messageReply = new MessagePeerlistShare(selectedPeers.size(), source->GetIP(), externalPort, 
                 channelList[channelId].GetServerNewestChunkID(), channelList[channelId].GetServerEstimatedStreamRate(), 
                 channelList[channelId].GetCreationTime(), nowtime, clientTime, this->bootStrap_ID,
-				channelList[channelId].GetPeerData(source).GetSizePeerListOutNew(),
-				channelList[channelId].GetPeerData(source).GetSizePeerListOutNew_FREE());
-
-
-
+				channelList[channelId].GetPeerData(source).GetSizePeerListOutInformed(),
+				channelList[channelId].GetPeerData(source).GetSizePeerListOutInformed_FREE());
 
             /**
             * Varre a lista de peers canditados, separando cada campo por um caracter de seperação    
@@ -267,10 +261,6 @@ void Bootstrap::HandlePingMessage(MessagePingBoot* message, string sourceAddress
             //If it has performance measures
             if (pingType == PING_BOOT_PERF)
             {
-            	/*
-            	 * controle de hit_count para geração de novo out
-            	 */
-
 
                 uint8_t indexPerfStart = 8;
                 MessagePingBootPerf* messageWrapper = new MessagePingBootPerf(message);
@@ -279,6 +269,7 @@ void Bootstrap::HandlePingMessage(MessagePingBoot* message, string sourceAddress
                 time_t rawtime;
                 time(&rawtime);
                 int peerChunkSent = pingHeader[indexPerfStart + 1];
+                int peerBandwidth = channelList[channelId].GetPeerData(srcPeer).GetLimitUpload();
                 string performanceLog = sourceAddress + " ";                                                //PeerID
                 performanceLog += boost::lexical_cast<string>(pingHeader[indexPerfStart + 0]) + " ";        //ChunkGenerated
                 performanceLog += boost::lexical_cast<string>(peerChunkSent) + " ";                         //ChunkSent
@@ -309,6 +300,7 @@ void Bootstrap::HandlePingMessage(MessagePingBoot* message, string sourceAddress
 
 				performanceLog += boost::lexical_cast<string>(pingHeader[4]) + " ";                       //ECM maxPeerListOut
 				performanceLog += boost::lexical_cast<string>(pingHeader[5]) + " ";                       //ECM maxPeerListOut_FREE
+				performanceLog += boost::lexical_cast<string>(peerBandwidth) + " ";                       //ECM Bandwidth
 				performanceLog += boost::lexical_cast<string>(totalPeer) + "\n";                          // Total pares
 
 
@@ -325,22 +317,24 @@ void Bootstrap::HandlePingMessage(MessagePingBoot* message, string sourceAddress
                     pd.SetUploadScore((pd.GetUploadScore() + peerUpload)/neighborhoodSize);
 
                 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
                 /*
                  * Tecnica de overlay Free Rider Slice
                  * geração de novos OUT e OUT-FREE
-                 */
+                */
 
-                channelList[channelId].GetPeerData(srcPeer).DecHit_count();
-                channelList[channelId].GetPeerData(srcPeer).inc_peerSentChunks(peerChunkSent);
-                if ((XPConfig::Instance()->GetBool("dynamicTopologyArrangement") and (channelList[channelId].GetServer()->GetID() == srcPeer->GetID())))
-                {
-                	 channelList[channelId].DecHit_count();
-                     if ((channelList[channelId].GetHit_count() == 0) ){
-                     	channelList[channelId].SetHit_count(this->hit_count);
-                     	cout<<"reseta hit channel "<<channelList[channelId].GetHit_count()<<" e chama atualização"<<endl;
-                     	channelList[channelId].RenewOUTALL();
-                     }
+                if (XPConfig::Instance()->GetBool("dynamicTopologyArrangement")){
+                	channelList[channelId].GetPeerData(srcPeer).DecHit_count();
+                	channelList[channelId].GetPeerData(srcPeer).Inc_peerSentChunks(peerChunkSent);
+                	cout<<"Hit para "<<srcPeer->GetID()<<" "<<channelList[channelId].GetPeerData(srcPeer).GetHit_count()<<endl;
+                	if ((channelList[channelId].GetServer()->GetID() == srcPeer->GetID()) and
+                		(channelList[channelId].GetPeerData(srcPeer).GetHit_count() == 0))
+                	{
+                		channelList[channelId].RenewOUTALL();
+                		channelList[channelId].GetPeerData(srcPeer).SetHit_count(this->hit_count);
+                	}
                 }
+
                 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
             }

@@ -17,10 +17,6 @@
 
 using namespace std;
 
-/** 
- * Função principal
- *  chama as threads necessárias para execução do programa
- */
 int main(int argc, char* argv[]) {
     string myTCPPort = TCPPORT;
     string myUDPPort = UDPPORT;
@@ -28,16 +24,11 @@ int main(int argc, char* argv[]) {
 
 
     unsigned int peerListSharedSize = 20;
-    uint8_t minimumBandwidth = 0;               // minimum bandwidth to share peer in peerListShare
+    uint8_t minimumBandwidth = 1;               // minimum bandwidth to share peer in peerListShare
     uint8_t minimumBandwidth_FREE = 0;          // only if --separatedFreeOutList
-    uint16_t timeToSetNewOut = 0;
-    uint16_t timeNewOutDelayStarts = 60/10;         // 60 segundos
 
-    //for channel
-    uint8_t inCommon = 10;
-    uint8_t inFree = 10;
-    uint8_t percentPeersInClass = 20;
-    uint8_t classAmount = 3 ;
+    uint16_t timeToSetNewOut = 0;               // se habilitar a técnica de topologia
+    uint16_t timeNewOutDelayStarts = 50/10;     // 50 segundos. Após o início zera a contribução de todos
 
     string arg1 = "";
     if( argv[1] != NULL)
@@ -58,17 +49,14 @@ int main(int argc, char* argv[]) {
         cout <<endl;
         cout <<"   FOR CHANNEL FREE RIDER SLICE TECHNIQUE"                                <<endl;
         cout <<endl;
-        cout <<"  -inCommon                    common peers'  IN configuration                 (defautl:"<<inCommon<<")"<<endl;
-        cout <<"  -inFree                      free rider peers'  IN configuration             (defautl:"<<inFree<<")"<<endl;
-        cout <<"  -percentPeersInClass         minimum peers' percentage in each class         (defautl:"<<percentPeersInClass<<"%)"<<endl;
-        cout <<"  -classAmount                 number of class peers' contribution             (defautl:"<<classAmount<<")"<<endl;
-        cout <<"  -timeToSetNewOut             seconds before calculate news OUT e OUT-FREE    (default: "<<timeToSetNewOut<<")"<<endl;
+        cout <<"  -timeToSetNewOut             seconds interval to calculate new [OUT,OUT-FREE]    (default: "<<timeToSetNewOut<<")"<<endl;
         cout <<"                                **(automatically sets --dynamicTopologyArrangement)"<<endl;
         cout <<"  -timeNewOutDelayStarts       network time wait before starts timeToSetNewOut (defautl:"<<timeNewOutDelayStarts<<")"<<endl;
-        cout <<"  --dynamicTopologyArrangement enable free rider slice technique         "<<endl;
+        cout <<"  --dynamicTopologyArrangement enable free rider slice technique          "<<endl;
+        cout <<"  --indicateClassPosition      bootstrap asks bandwidth and suggest class "<<endl;
         cout <<endl;
-        cout <<"  --separatedFreeOutList       share peer per listOut or ListOut_FREE    "<<endl;
-        cout <<"  --isolaVirtutalPeerSameIP    permit only different IP partner          "<<endl;
+        cout <<"  --separatedFreeOutList       share peer per listOut or ListOut_FREE     "<<endl;
+        cout <<"  --isolaVirtutalPeerSameIP    permit only different IP partner           "<<endl;
 
         exit(1);
     }
@@ -78,6 +66,7 @@ int main(int argc, char* argv[]) {
     XPConfig::Instance()->SetBool("isolaVirtutalPeerSameIP", false);
     XPConfig::Instance()->SetBool("separatedFreeOutList",false);
     XPConfig::Instance()->SetBool("dynamicTopologyArrangement",false);
+    XPConfig::Instance()->SetBool("indicateClassPosition",false);
 
     int optind=1;
     // decode arguments
@@ -120,21 +109,8 @@ int main(int argc, char* argv[]) {
             timeNewOutDelayStarts = atoi(argv[optind]);
             timeNewOutDelayStarts = timeNewOutDelayStarts / 10;
          }
-        else if (swtc=="-inCommon") {
-            optind++;
-            inCommon = atoi(argv[optind]);
-         }
-        else if (swtc=="-inFree") {
-            optind++;
-            inFree = atoi(argv[optind]);
-         }
-        else if (swtc=="-percentPeersInClass") {
-            optind++;
-            percentPeersInClass = atoi(argv[optind]);
-         }
-        else if (swtc=="-classAmount") {
-            optind++;
-            classAmount = atoi(argv[optind]);
+        else if (swtc=="--indicateClassPosition") {
+             XPConfig::Instance()->SetBool("indicateClassPosition",true);
          }
         else if (swtc=="--isolaVirtutalPeerSameIP")
         {
@@ -145,7 +121,10 @@ int main(int argc, char* argv[]) {
         {
             XPConfig::Instance()->SetBool("dynamicTopologyArrangement", true);
         }
-
+        else if (swtc=="--separatedFreeOutList")
+        {
+        	XPConfig::Instance()->SetBool("separatedFreeOutList",true);
+        }
         else {
             cout << "Invalid Arguments"<<endl; 
             exit(1);
@@ -154,8 +133,7 @@ int main(int argc, char* argv[]) {
     }
 
     XPConfig::Instance()->OpenConfigFile("");
-    Bootstrap bootstrapInstance(myUDPPort, peerlistSelectorStrategy, peerListSharedSize, minimumBandwidth, minimumBandwidth_FREE, timeToSetNewOut, timeNewOutDelayStarts,
-    		                    inCommon, inFree, percentPeersInClass, classAmount);
+    Bootstrap bootstrapInstance(myUDPPort, peerlistSelectorStrategy, peerListSharedSize, minimumBandwidth, minimumBandwidth_FREE, timeToSetNewOut, timeNewOutDelayStarts);
     
     boost::thread TTCPSERVER(boost::bind(&Bootstrap::TCPStart, &bootstrapInstance, myTCPPort.c_str()));
     boost::thread TUDPSERVER(boost::bind(&Bootstrap::UDPStart, &bootstrapInstance));

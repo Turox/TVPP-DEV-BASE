@@ -14,7 +14,7 @@
 
 //Message Header Sizes
 #define MESSAGE_HEADER_SIZE                      6
-#define MESSAGE_CHANNEL_HEADER_SIZE             24
+#define MESSAGE_CHANNEL_HEADER_SIZE             28  //acrescido de 4 limitUpload
 #define MESSAGE_REQUEST_HEADER_SIZE             18
 #define MESSAGE_ERROR_HEADER_SIZE                8
 #define MESSAGE_PEERLIST_HEADER_SIZE            10
@@ -70,6 +70,15 @@ enum PeerlistTypes
     PEERLIST_BASE          = 0x00,     // PEERLIST BASE
     PEERLIST_SHARE         = 0x01,     // PEERLIST TO SHARE PARTNERS
     PEERLIST_LOG           = 0x02      // PEERLIST TO LOG
+};
+
+enum TopologyClasses
+{
+	classA                 = 0x00,
+	classB                 = 0x01,
+	classC                 = 0x02,
+	classD                 = 0x03,
+	error                  = 0x04,
 };
 
 //ERROR MESSAGES FLAGS

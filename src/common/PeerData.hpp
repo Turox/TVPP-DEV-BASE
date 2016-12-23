@@ -13,6 +13,7 @@ using namespace std;
 
 
 typedef std::pair<std::string, uint32_t> PairStrInt;
+typedef std::pair<TopologyClasses, uint32_t> PairTopologyInt;
 
 /**
 * This class implements the information about the peers
@@ -36,9 +37,10 @@ class PeerData
         int GetTTLIn();
         void SetTTLIn(int v);
         void DecTTLIn();
-        int GetTTLOut();
-        void SetTTLOut(int v);
-        void DecTTLOut();
+
+        int GetTTLOut(bool peerListOut_free);
+        void SetTTLOut(int v, bool peerListOut_free);
+        void DecTTLOut(bool peerListOut_free);
 
         int GetTTLChannel();
         void SetTTLChannel(int v);
@@ -66,18 +68,19 @@ class PeerData
         void SetSizePeerListOutInformed(int sizePeerListOutInformed);
         void SetSizePeerListOutInformed_FREE(int sizePeerListOutInformed_FREE);
 
-        int GetSizePeerListOutNew ();
-        int GetSizePeerListOutNew_FREE ();
-        void SetSizePeerListOutNew(int sizePeerListOutNew);
-        void SetSizePeerListOutNew_FREE(int sizePeerListOutNew_FREE);
+        int GetSizePeerListOutOld ();
+        int GetSizePeerListOutOld_FREE ();
+        void SetSizePeerListOutOld(int sizePeerListOutNew);
+        void SetSizePeerListOutOld_FREE(int sizePeerListOutNew_FREE);
 
         void SetHit_count(uint16_t hit_count);
         void DecHit_count();
         uint16_t GetHit_count();
 
 
-        void inc_peerSentChunks (int value = 1);
+        void Inc_peerSentChunks (int value = 1);
         uint32_t Get_peerSentChunks();
+        void Set_peerSentChunks(uint32_t value);
 
         ChunkUniqueID GetChunkMapHead();
         void SetChunkMapHead(ChunkUniqueID chunkMapHead);
@@ -98,6 +101,7 @@ class PeerData
         //ECM
         int ttlIn;
         int ttlOut;
+        int ttlout_free;
         int ttlChannel;
         uint32_t peerSentChunks;    // pontua clientes com maior pedidos por dados
         uint16_t hit_count;         // contador de contatos de peers para calculo de newOut e newOutFree

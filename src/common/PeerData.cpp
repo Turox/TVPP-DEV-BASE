@@ -12,6 +12,7 @@ PeerData::PeerData(Peer* peer, int ttlIn, int ttlOut, int ttlChannel, int size) 
 	//ECM
 	this->ttlIn = ttlIn;
 	this->ttlOut = ttlOut;
+	this->ttlout_free = this->ttlOut;
 	this->ttlChannel = ttlChannel;
     this->peer = peer;
     uploadScore = 0;
@@ -22,11 +23,14 @@ PeerData::PeerData(Peer* peer, int ttlIn, int ttlOut, int ttlChannel, int size) 
     this->hit_count=0;
 }
 
-void PeerData::inc_peerSentChunks (int value){
+void PeerData::Inc_peerSentChunks (int value){
 	this->peerSentChunks = this->peerSentChunks + value;
 }
 uint32_t PeerData::Get_peerSentChunks(){
 	return this->peerSentChunks;
+}
+void PeerData::Set_peerSentChunks(uint32_t value){
+	this->peerSentChunks = value;
 }
 
 
@@ -35,24 +39,32 @@ int PeerData::GetTTLIn()
 {
     return ttlIn;
 }
-int PeerData::GetTTLOut()
+int PeerData::GetTTLOut(bool peerListOut_free)
 {
+	if (peerListOut_free)
+		return ttlout_free;
     return ttlOut;
 }
+
 int PeerData::GetTTLChannel()
 {
     return ttlChannel;
 }
+
 
 /** Altera o TTL*****************/
 void PeerData::SetTTLIn(int ttlIn)
 {
 	this->ttlIn = ttlIn;
 }
-void PeerData::SetTTLOut(int ttlOut)
+void PeerData::SetTTLOut(int ttlOutMax, bool peerListOut_free)
 {
-	this->ttlOut = ttlOut;
+	if (peerListOut_free)
+		this->ttlout_free = ttlOutMax;
+	else
+		this->ttlOut = ttlOutMax;
 }
+
 void PeerData::SetTTLChannel(int ttlChannel)
 {
 	this->ttlChannel = ttlChannel;
@@ -63,10 +75,14 @@ void PeerData::DecTTLIn()
 {
     ttlIn--;
 }
-void PeerData::DecTTLOut()
+void PeerData::DecTTLOut(bool peerListOut_free)
 {
-    ttlOut--;
+	if (peerListOut_free)
+		ttlout_free--;
+	else
+		ttlOut--;
 }
+
 void PeerData::DecTTLChannel()
 {
     ttlChannel--;
@@ -202,25 +218,25 @@ uint16_t PeerData::GetHit_count(){
 }
 
 
-int PeerData::GetSizePeerListOutNew ()
+int PeerData::GetSizePeerListOutOld ()
 {
-   return this->GetPeer()->GetSizePeerListOutNew();
+   return this->GetPeer()->GetSizePeerListOutOld();
 }
 
-int PeerData::GetSizePeerListOutNew_FREE ()
+int PeerData::GetSizePeerListOutOld_FREE ()
 {
-   return this->GetPeer()->GetSizePeerListOutNew_FREE();
+   return this->GetPeer()->GetSizePeerListOutOld_FREE();
 }
 
 
-void PeerData::SetSizePeerListOutNew(int sizePeerListOutNew)
+void PeerData::SetSizePeerListOutOld(int sizePeerListOutOld)
 {
-	this->GetPeer()->SetSizePeerListOutNew(sizePeerListOutNew);
+	this->GetPeer()->SetSizePeerListOutOld(sizePeerListOutOld);
 }
 
-void PeerData::SetSizePeerListOutNew_FREE(int sizePeerListOutNew_FREE)
+void PeerData::SetSizePeerListOutOld_FREE(int sizePeerListOutOld_FREE)
 {
-	this->GetPeer()->SetSizePeerListOutNew_FREE(sizePeerListOutNew_FREE);
+	this->GetPeer()->SetSizePeerListOutOld_FREE(sizePeerListOutOld_FREE);
 }
 
 

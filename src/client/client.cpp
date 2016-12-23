@@ -552,7 +552,7 @@ void Client::HandlePingMessageOut(vector<int>* pingHeader, MessagePing* message,
         }
     }
 
-    peerManager.GetPeerData(sourceAddress)->SetTTLOut(TTL_MAX_Out);
+    peerManager.GetPeerData(sourceAddress)->SetTTLOut(TTL_MAX_Out, peerManager.isActiveOut_free(peerManager.GetPeerActiveOut(outFree,sizePeerListOut)));
     peerManager.GetPeerData(sourceAddress)->SetMode(otherPeerMode);
     peerListLock.unlock();
 }
@@ -1632,7 +1632,7 @@ void Client::UDPSend()
                 udp->Send(aMessage->GetAddress(),aMessage->GetMessage()->GetFirstByte(),aMessage->GetMessage()->GetSize());
                 if (aMessage->GetMessage()->GetOpcode() == OPCODE_DATA){
                     chunksSent++;
-                    peerManager.GetPeerData(aMessage->GetAddress())->inc_peerSentChunks(); //ECM pontua clientes que requisitam mais chunks
+                    peerManager.GetPeerData(aMessage->GetAddress())->Inc_peerSentChunks(); //ECM pontua clientes que requisitam mais chunks
 
                 }
 

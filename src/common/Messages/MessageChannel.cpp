@@ -1,7 +1,7 @@
 #include "MessageChannel.hpp"
 
 MessageChannel::MessageChannel(uint8_t channelFlag, bool performingPunch, uint16_t externalPort, uint32_t idChannel, uint32_t nowTime,
-		                       uint16_t maxPeerListOutInformed,  uint16_t maxPeerListOutInformed_FREE, uint16_t limitUpload)
+		                       uint16_t maxPeerListOutInformed,  uint16_t maxPeerListOutInformed_FREE, int32_t limitUpload)
 {
     vector<int> data = GetHeaderValuesDataVector(channelFlag, performingPunch, externalPort, idChannel, nowTime,
     		                                      maxPeerListOutInformed, maxPeerListOutInformed_FREE, limitUpload);
@@ -11,7 +11,7 @@ MessageChannel::MessageChannel(uint8_t channelFlag, bool performingPunch, uint16
 }
 
 vector<int> MessageChannel::GetHeaderValuesDataVector(uint8_t channelFlag, bool performingPunch, uint16_t externalPort, uint32_t idChannel, uint32_t nowTime,
-		                                              uint16_t maxPeerListOutInformed,  uint16_t maxPeerListOutInformed_FREE, uint16_t limitUpload)
+		                                              uint16_t maxPeerListOutInformed,  uint16_t maxPeerListOutInformed_FREE, int32_t limitUpload)
 {
     vector<int> data(9);
     data[0] = channelFlag;
@@ -38,7 +38,7 @@ vector<uint8_t> MessageChannel::GetHeaderValuesSizeVector()
     sizes[5] = 32;                                                    //NOWTIME
     sizes[6] = 16;                                                    //INFORME LISTOUT SIZE
     sizes[7] = 16;                                                    //INFORME LISTOUT-FREE SIZE
-    sizes[8] = 16;                                                    //INFORME limitUpload
+    sizes[8] = 32;                                                    //INFORME limitUpload
 
     return sizes;
 }
