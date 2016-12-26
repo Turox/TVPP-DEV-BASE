@@ -4,7 +4,7 @@ using namespace std;
 
 /** Construtor **/
 Bootstrap::Bootstrap(string udpPort, string peerlistSelectorStrategy, unsigned int peerListSharedSize, uint8_t minimumBandwidth,
-		             uint8_t minimumBandwidth_FREE,uint16_t hit_count,  uint16_t timeNewOutDelayStarts)
+		             uint8_t minimumBandwidth_FREE,uint16_t hit_count,  uint16_t timeNewOutDelayStarts, uint8_t peerPercentChangeAlowed)
 {
     if (peerlistSelectorStrategy == "TournamentStrategy")
         this->peerlistSelectorStrategy = new TournamentStrategy();
@@ -21,7 +21,7 @@ Bootstrap::Bootstrap(string udpPort, string peerlistSelectorStrategy, unsigned i
     //for channel
     this->hit_count = hit_count;
     this->timeNewOutDelayStarts = timeNewOutDelayStarts;
-
+    this->peerPercentChangeAlowed = peerPercentChangeAlowed;
 
 
     udp = new UDPServer(boost::lexical_cast<uint32_t>(udpPort),0,NULL,new FIFOMessageScheduler());
@@ -82,7 +82,7 @@ Message *Bootstrap::HandleChannelMessage(MessageChannel* message, string sourceA
         case CHANNEL_CREATE:
             if (channelList.find(channelId) == channelList.end())
             {
-                channelList[channelId] = Channel(channelId, source, XPConfig::Instance()->GetBool("dynamicTopologyArrangement"));
+                channelList[channelId] = Channel(channelId, source, XPConfig::Instance()->GetBool("dynamicTopologyArrangement"), this->peerPercentChangeAlowed);
                 channelList[channelId].GetPeerData(source).SetHit_count(this->hit_count + this->timeNewOutDelayStarts);
                 channelList[channelId].SetIndicateClassPosition(XPConfig::Instance()->GetBool("indicateClassPosition"));
                 cout<<"hitserve "<<this->hit_count + this->timeNewOutDelayStarts<<endl;

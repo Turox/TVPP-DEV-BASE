@@ -57,6 +57,8 @@ class PeerManager
 	void SetMaxActivePeersOut(unsigned int maxActivePeers);
 	void SetMaxActivePeersOutFREE(unsigned int maxActivePeersFREE);
 	void SetNewMMaxActivePeersOut(int newMaxActivePeers,set<string>* peerActiveOut);
+	void Inc_peerSentChunks (string peerID, int value = 1);
+
     bool isActiveOut_free (set<string>* outList);
 
 

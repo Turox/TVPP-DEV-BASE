@@ -78,7 +78,9 @@ enum TopologyClasses
 	classB                 = 0x01,
 	classC                 = 0x02,
 	classD                 = 0x03,
-	error                  = 0x04,
+	classBC                = 0x04,
+	classCD                = 0x05,
+	error                  = 0x06,
 };
 
 //ERROR MESSAGES FLAGS

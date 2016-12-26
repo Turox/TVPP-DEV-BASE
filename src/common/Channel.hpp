@@ -26,7 +26,7 @@ class Channel
         * Constructor
         * @param idServer server ip and port (ip:port)
         */
-        Channel(unsigned int channelId = 0, Peer* serverPeer = NULL, bool dynamicTopologyArrangement = false);
+        Channel(unsigned int channelId = 0, Peer* serverPeer = NULL, bool dynamicTopologyArrangement = false, uint8_t peerPercentChangeAlowed = 0);
 
         ChunkUniqueID GetServerNewestChunkID();
 		void SetServerNewestChunkID(ChunkUniqueID serverNewestChunkID);
@@ -44,7 +44,8 @@ class Channel
 
         //topology experiments
         void RenewOUTALL();
-        int NormalizeClasses(TopologyClasses classRef, vector<PairStrInt>* ordinaryNodeVector, int start, int stop);
+        void ConvertePeerClasse(TopologyClasses newClass, vector<PairStrInt>::iterator pos, vector<PairStrInt>* ordinaryNodeVector);
+        int NormalizeClasses(TopologyClasses classBase, TopologyClasses classRef, vector<PairStrInt>* ordinaryNodeVector, int start, int stop, uint8_t percent);
         void SetIndicateClassPosition(bool indicateClassPosition);
         TopologyClasses SugestedClass(int bandwidth);
 
@@ -59,6 +60,7 @@ class Channel
         FILE* GetPerformanceFile();
         FILE* GetOverlayFile();
         bool firstTimeOverlay;
+        uint8_t peerPercentChangeAlowed;
 		
 		friend bool operator<(const Channel &a, const Channel &b) {return a.channelId<b.channelId;};
 		

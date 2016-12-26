@@ -261,6 +261,7 @@ bool PeerManager::IsPeerActive(string peer,set<string>* peerActive)
 }
 
 
+
 PeerData* PeerManager::GetPeerData(string peer){return &peerList[peer];}
 map<string, PeerData>* PeerManager::GetPeerList(){return &peerList;}
 boost::mutex* PeerManager::GetPeerListMutex(){return &peerListMutex;}
@@ -464,4 +465,17 @@ bool PeerManager::GetRemoveWorsePartner (){
 bool PeerManager::isActiveOut_free (set<string>* outList){
 	return outList == &peerActiveOutFREE;
 }
+
+void PeerManager::Inc_peerSentChunks (string peerID, int value){
+	boost::mutex::scoped_lock peerListLock(peerListMutex);
+	if (peerList.find(peerID) != peerList.end())
+	{
+		this->GetPeerData(peerID)->Inc_peerSentChunks();
+	}
+	peerListLock.unlock();
+}
+
+
+
+
 

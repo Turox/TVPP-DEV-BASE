@@ -7,7 +7,7 @@ static bool pairCompareTopology(PairTopologyInt a, PairTopologyInt b){ return (a
 static void sortPairTopologyClassesIntVec(std::vector<PairTopologyInt>& vec){std::sort(vec.begin(), vec.end(), pairCompareTopology);}
 
 
-Channel::Channel(unsigned int channelId, Peer* serverPeer, bool dynamicTopologyArrangement)
+Channel::Channel(unsigned int channelId, Peer* serverPeer, bool dynamicTopologyArrangement, uint8_t peerPercentChangeAlowed)
 {
     if (channelId != 0 || serverPeer != NULL) //Avoid creation by map[]
     {
@@ -20,6 +20,7 @@ Channel::Channel(unsigned int channelId, Peer* serverPeer, bool dynamicTopologyA
         /*
          * ler de arquivo de configuração
          */
+        this->peerPercentChangeAlowed = peerPercentChangeAlowed;
         this->firstTimeOverlay = true;
         this->indicateClassPosition = false;
         this->dynamicTopologyArrangement = dynamicTopologyArrangement;
@@ -33,11 +34,12 @@ Channel::Channel(unsigned int channelId, Peer* serverPeer, bool dynamicTopologyA
             NewClass = new TopologyData(131072, 20, 1, 38, 40);   // [1.0Mb/s, 2.0Mb/s)
 			classTopologySettings[classB] = (*NewClass);
 
-            NewClass = new TopologyData(262144, 20, 18, 22, 30);  // [2.0Mb/s, 3.5Mb/s)
+            NewClass = new TopologyData(262144, 20, 18, 22, 45);  // [2.0Mb/s, 3.5Mb/s)
 			classTopologySettings[classC] = (*NewClass);
 
             NewClass = new TopologyData(458752, 20, 46, 0, 15);   // >= 3.5Mb/s
 			classTopologySettings[classD] = (*NewClass);
+
         }
 
         //Logging
@@ -57,16 +59,70 @@ Channel::Channel(unsigned int channelId, Peer* serverPeer, bool dynamicTopologyA
         overlayFile = fopen(logFilenameOverlay.c_str(),"w");
     } 
 }
-int Channel::NormalizeClasses(TopologyClasses classRef, vector<PairStrInt>* ordinaryNodeVector, int start, int stop){
-    int contador = 0;
-	for (vector<PairStrInt>::iterator common = ordinaryNodeVector->begin() + start; common != ordinaryNodeVector->begin() + stop ; common++)
-	{
-		peerList[common->first].SetSizePeerListOutOld(peerList[common->first].GetSizePeerListOutInformed());
-		peerList[common->first].SetSizePeerListOutInformed(classTopologySettings[classRef].GetOut());
 
-		peerList[common->first].SetSizePeerListOutOld_FREE(peerList[common->first].GetSizePeerListOutInformed_FREE());
-		peerList[common->first].SetSizePeerListOutInformed_FREE(classTopologySettings[classRef].GetOut_free());
-		contador++;
+
+void Channel::ConvertePeerClasse(TopologyClasses newClass, vector<PairStrInt>::iterator pos, vector<PairStrInt>* ordinaryNodeVector){
+	peerList[pos->first].SetSizePeerListOutOld(peerList[pos->first].GetSizePeerListOutInformed());
+	peerList[pos->first].SetSizePeerListOutInformed(classTopologySettings[newClass].GetOut());
+
+	peerList[pos->first].SetSizePeerListOutOld_FREE(peerList[pos->first].GetSizePeerListOutInformed_FREE());
+	peerList[pos->first].SetSizePeerListOutInformed_FREE(classTopologySettings[newClass].GetOut_free());
+}
+
+/***************************************************************************************************************************
+ * SE FOR DA CLASSE REFERENCIA NÃO FAZ NADA
+ * SE FOR DIFERNTE (MAIOR OU MENOR)
+ * 		SE FOR DA CLASSE C -> PASSA PARA A CLASSE REFERNCIA
+ * 		SENÃO, PASSA PARA A CLASSE C
+ */
+
+int Channel::NormalizeClasses(TopologyClasses classBase, TopologyClasses classRef, vector<PairStrInt>* ordinaryNodeVector, int start, int stop, uint8_t percent){
+
+	int contador = 0;
+	vector<PairStrInt>::iterator common;
+	int totalAltera = (ordinaryNodeVector->size())*percent/100;
+
+	if (classBase == classRef){
+		for (common = ordinaryNodeVector->begin() + start; common != ordinaryNodeVector->begin() + stop ; common++)
+			if (peerList[common->first].GetSizePeerListOutInformed() != classTopologySettings[classBase].GetOut()){
+				this->ConvertePeerClasse(classBase, common, ordinaryNodeVector);
+				contador = contador + 1;
+			}
+	}
+	else
+	{
+		if (classTopologySettings[classRef].GetOut() > classTopologySettings[classBase].GetOut()){
+			for (common = ordinaryNodeVector->begin() + start; common != ordinaryNodeVector->begin() + stop ; common++)
+			{
+				if (contador < totalAltera){
+					if (peerList[common->first].GetSizePeerListOutInformed() != classTopologySettings[classRef].GetOut()){
+						if (peerList[common->first].GetSizePeerListOutInformed() == classTopologySettings[classBase].GetOut())
+							this->ConvertePeerClasse(classRef, common, ordinaryNodeVector);   // vem para a classe REf
+						else
+							this->ConvertePeerClasse(classBase, common, ordinaryNodeVector);	// vai para a classe Base
+						contador = contador + 1;
+					}
+				}
+				else break;
+			}
+		}
+		else
+		{
+			for (common = ordinaryNodeVector->begin() + (stop - 1) ; common != ordinaryNodeVector->begin() + (start +1) ; common--)
+				{
+					if (contador < totalAltera){
+						if (peerList[common->first].GetSizePeerListOutInformed() != classTopologySettings[classRef].GetOut()){
+							if (peerList[common->first].GetSizePeerListOutInformed() == classTopologySettings[classBase].GetOut())
+								this->ConvertePeerClasse(classRef, common, ordinaryNodeVector);   // vem para a classe REf
+							else
+								this->ConvertePeerClasse(classBase, common, ordinaryNodeVector);	// vai para a classe Base
+							contador = contador + 1;
+						}
+					}
+					else break;
+				}
+		}
+
 	}
 	return contador;
 }
@@ -105,28 +161,18 @@ void Channel::RenewOUTALL()
 		int commonSize = ordinaryNodeVector.size();
 
 		/****** CKmeans application *****/
-		int posClassD = commonSize * classTopologySettings[classD].GetPercentOfPeer()/100;
-		int posClassB = commonSize * (100 - classTopologySettings[classC].GetPercentOfPeer() )/100;
 
-		cout<<"normalização. Vetor Size: "<<commonSize<<" ClasseD index: "<<posClassD<<" ClassB index: "<<posClassB<<endl;
+		int posClassD =             commonSize * classTopologySettings[classD].GetPercentOfPeer()/100;
+		int posClassC = posClassD + commonSize * classTopologySettings[classC].GetPercentOfPeer()/100;
+		int posClassB = posClassC + commonSize * classTopologySettings[classB].GetPercentOfPeer()/100;
 
-		int count_peerClassD = this->NormalizeClasses(classD, &ordinaryNodeVector, 0        , posClassD);
-		int count_peerClassC = this->NormalizeClasses(classC, &ordinaryNodeVector, posClassD, posClassB);
-		int count_peerClassB = this->NormalizeClasses(classB, &ordinaryNodeVector, posClassB, commonSize);
+		cout<<"Vector Size: "<<commonSize<<" Classes index: ["<<posClassD<<","<<posClassC<<","<<posClassB<<"]"<<endl;
+
+		int count_peerClassD = this->NormalizeClasses(classC, classD, &ordinaryNodeVector, 0        , posClassD,this->peerPercentChangeAlowed);
+		int count_peerClassC = this->NormalizeClasses(classC, classC, &ordinaryNodeVector, posClassD, posClassC,this->peerPercentChangeAlowed);
+		int count_peerClassB = this->NormalizeClasses(classC, classB, &ordinaryNodeVector, posClassC, commonSize,this->peerPercentChangeAlowed);
 
 		cout<<"Normalized Classes ["<<count_peerClassD<<", "<<count_peerClassC<<", "<<count_peerClassB<<", "<<freeRiderVector.size()<<"]"<<endl;
-
-        /*
-		int totalIn_Free = 0, totalOut_Free = 0, totalIn_Common = 0, totalOut_Common = 0;
-		totalIn_Free = freeRiderVector.size() * classTopologySettings["classA"].GetIn();
-		totalIn_Common = count_peerClassD * classTopologySettings["classD"].GetIn() +
-			         count_peerClassC * classTopologySettings["classC"].GetIn() +
-			         count_peerClassB * classTopologySettings["classB"].GetIn();
-
-		for (vector<PairStrInt>::iterator common = ordinaryNodeVector.begin(); common != ordinaryNodeVector.end(); common++){
-			totalOut_Common = totalOut_Common  + peerList[common->first].GetSizePeerListOutInformed();
-			totalOut_Free   = totalOut_Free    + peerList[common->first].GetSizePeerListOutInformed_FREE();	}
-		*/
 	}
 
  }
@@ -178,9 +224,11 @@ void Channel::AddPeer(Peer* peer, uint16_t hit_count)
     peerList[peer->GetID()].SetHit_count(hit_count);
 
     if ((this->dynamicTopologyArrangement) and
-    		(peer->GetID() != this->GetServer()->GetID()) and            // non server
-    	    (peerList[peer->GetID()].GetLimitUpload() > 0))              // common peer
+    		(peer->GetID() != this->GetServer()->GetID()) and              // non server
+    	    (peerList[peer->GetID()].GetLimitUpload() > 0) and             // common peer
+			peerList[peer->GetID()].GetSizePeerListOutInformed() == 0)     // primeira conexão
     	{
+
     	if (this->indicateClassPosition)                                 // indicator selected
     	{
     		TopologyClasses classPeer = this->SugestedClass(peerList[peer->GetID()].GetLimitUpload());

@@ -1632,7 +1632,7 @@ void Client::UDPSend()
                 udp->Send(aMessage->GetAddress(),aMessage->GetMessage()->GetFirstByte(),aMessage->GetMessage()->GetSize());
                 if (aMessage->GetMessage()->GetOpcode() == OPCODE_DATA){
                     chunksSent++;
-                    peerManager.GetPeerData(aMessage->GetAddress())->Inc_peerSentChunks(); //ECM pontua clientes que requisitam mais chunks
+                    peerManager.Inc_peerSentChunks(aMessage->GetAddress()); //ECM pontua clientes que requisitam mais chunks
 
                 }
 
