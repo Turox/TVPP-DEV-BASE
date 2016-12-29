@@ -29,7 +29,10 @@ int main(int argc, char* argv[]) {
 
     uint16_t timeToSetNewOut = 0;               // se habilitar a técnica de topologia
     uint16_t timeNewOutDelayStarts = 50/10;     // 50 segundos. Após o início zera a contribução de todos
-    uint8_t peerPercentChangeAlowed = 3;            // porcentage de pares da rede que pode alterar de classe em cada classe
+    uint8_t peerPercentChangeAlowed = 3;        // porcentage de pares da rede que pode alterar de classe em cada classe
+    int classB = 2;  //1Mb/s
+	int classC = 4;  //2Mb/s
+	int classD = 7;  //3Mb/s
 
     string arg1 = "";
     if( argv[1] != NULL)
@@ -44,16 +47,17 @@ int main(int argc, char* argv[]) {
         cout <<"  -udpPort                     tcp bootstrap port                              (default: "<<myUDPPort<<")"<<endl;
         cout <<"  -peerlistSelectorStrategy    bootstrap selector list strategy                (default: RandomStrategy)"<<endl;
         cout <<"  -peerListSharedSize          peer quantity to be shared                      (default: "<<peerListSharedSize<<")"<<endl;
-        cout <<"  -minimalOUTsend              minimum OUT to share a peer                     (defautl: "<<(int)minimumBandwidth<<")"<<endl;
-        cout <<"  -minimalOUTFREEsend          minimum OUT_FRER to share a peer to Free Rider  (defautl: "<<(int)minimumBandwidth_FREE<<")"<<endl;
+        cout <<"  -minimalOUTsend              minimum OUT to share a peer                     (default: "<<(int)minimumBandwidth<<")"<<endl;
+        cout <<"  -minimalOUTFREEsend          minimum OUT_FRER to share a peer to Free Rider  (default: "<<(int)minimumBandwidth_FREE<<")"<<endl;
         cout <<"                               **(If chosen this automatically sets -separatedFreeOutList=true)"<<endl;
         cout <<endl;
         cout <<" ***  FOR CHANNEL FREE RIDER SLICE TECHNIQUE ***"                                <<endl;
         cout <<endl;
         cout <<"  -timeToSetNewOut             seconds interval to calculate new [OUT,OUT-FREE]    (default: "<<timeToSetNewOut<<")"<<endl;
         cout <<"                                **(automatically sets --dynamicTopologyArrangement)"<<endl;
-        cout <<"  -timeNewOutDelayStarts       network time wait before starts timeToSetNewOut (defautl:"<<timeNewOutDelayStarts<<")"<<endl;
-        cout <<"  -peerPercentChangeAlowed     percentage of peer allowed to change class      (defautl:"<<peerPercentChangeAlowed<<"%)"<<endl;
+        cout <<"  -timeNewOutDelayStarts       network time wait before starts timeToSetNewOut (default:"<<timeNewOutDelayStarts<<")"<<endl;
+        cout <<"  -peerPercentChangeAlowed     percentage of peer allowed to change class      (default:"<<peerPercentChangeAlowed<<"%)"<<endl;
+        cout <<"  -classB, -classC, -classD    minimum class bandwidth to peer join in each class(default:"<<classB<<","<<classC<<","<<classD<<")"<<endl;
         cout <<"  --dynamicTopologyArrangement enable free rider slice technique          "<<endl;
         cout <<"  --indicateClassPosition      bootstrap asks bandwidth and suggest class "<<endl;
         cout <<" ***"<<endl;
@@ -116,6 +120,23 @@ int main(int argc, char* argv[]) {
             optind++;
             peerPercentChangeAlowed = atoi(argv[optind]);
          }
+        //+++++++++++++++++
+
+        else if (swtc=="-classB") {
+            optind++;
+            classB = atoi(argv[optind]);
+         }
+        else if (swtc=="-classC") {
+            optind++;
+            classC = atoi(argv[optind]);
+         }
+        else if (swtc=="-classD") {
+            optind++;
+            classD = atoi(argv[optind]);
+         }
+
+
+        //++++++++++++
 
         else if (swtc=="--indicateClassPosition") {
              XPConfig::Instance()->SetBool("indicateClassPosition",true);
@@ -141,7 +162,9 @@ int main(int argc, char* argv[]) {
     }
 
     XPConfig::Instance()->OpenConfigFile("");
-    Bootstrap bootstrapInstance(myUDPPort, peerlistSelectorStrategy, peerListSharedSize, minimumBandwidth, minimumBandwidth_FREE, timeToSetNewOut, timeNewOutDelayStarts, peerPercentChangeAlowed);
+    Bootstrap bootstrapInstance(myUDPPort, peerlistSelectorStrategy, peerListSharedSize, minimumBandwidth, minimumBandwidth_FREE,
+    		                    timeToSetNewOut, timeNewOutDelayStarts, peerPercentChangeAlowed,
+								classB,classC, classD);
     
     boost::thread TTCPSERVER(boost::bind(&Bootstrap::TCPStart, &bootstrapInstance, myTCPPort.c_str()));
     boost::thread TUDPSERVER(boost::bind(&Bootstrap::UDPStart, &bootstrapInstance));

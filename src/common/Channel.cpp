@@ -7,7 +7,8 @@ static bool pairCompareTopology(PairTopologyInt a, PairTopologyInt b){ return (a
 static void sortPairTopologyClassesIntVec(std::vector<PairTopologyInt>& vec){std::sort(vec.begin(), vec.end(), pairCompareTopology);}
 
 
-Channel::Channel(unsigned int channelId, Peer* serverPeer, bool dynamicTopologyArrangement, uint8_t peerPercentChangeAlowed)
+Channel::Channel(unsigned int channelId, Peer* serverPeer, bool dynamicTopologyArrangement, uint8_t peerPercentChangeAlowed,
+		int bandwidthJoinClassB, int bandwidthJoinClassC, int bandwidthJoinClassD)
 {
     if (channelId != 0 || serverPeer != NULL) //Avoid creation by map[]
     {
@@ -20,6 +21,10 @@ Channel::Channel(unsigned int channelId, Peer* serverPeer, bool dynamicTopologyA
         /*
          * ler de arquivo de configuração
          */
+        this->bandwidthJoinClassB=bandwidthJoinClassB * 65536;
+        this->bandwidthJoinClassC=bandwidthJoinClassC * 65536;
+        this->bandwidthJoinClassD=bandwidthJoinClassD * 65536;
+
         this->peerPercentChangeAlowed = peerPercentChangeAlowed;
         this->firstTimeOverlay = true;
         this->indicateClassPosition = false;
@@ -31,13 +36,13 @@ Channel::Channel(unsigned int channelId, Peer* serverPeer, bool dynamicTopologyA
             NewClass = new TopologyData(0, 20, 0, 0, 0);          // 0.0Mb/s
 			classTopologySettings[classA] =(*NewClass);
 
-            NewClass = new TopologyData(131072, 20, 1, 38, 40);   // [1.0Mb/s, 2.0Mb/s)
+            NewClass = new TopologyData(this->bandwidthJoinClassB, 20, 1, 38, 40);
 			classTopologySettings[classB] = (*NewClass);
 
-            NewClass = new TopologyData(262144, 20, 18, 22, 45);  // [2.0Mb/s, 3.5Mb/s)
+            NewClass = new TopologyData(this->bandwidthJoinClassC, 20, 18, 22, 45);
 			classTopologySettings[classC] = (*NewClass);
 
-            NewClass = new TopologyData(458752, 20, 46, 0, 15);   // >= 3.5Mb/s
+            NewClass = new TopologyData(this->bandwidthJoinClassD, 20, 46, 0, 15);
 			classTopologySettings[classD] = (*NewClass);
 
         }

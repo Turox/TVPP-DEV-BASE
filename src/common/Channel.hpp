@@ -26,7 +26,8 @@ class Channel
         * Constructor
         * @param idServer server ip and port (ip:port)
         */
-        Channel(unsigned int channelId = 0, Peer* serverPeer = NULL, bool dynamicTopologyArrangement = false, uint8_t peerPercentChangeAlowed = 0);
+        Channel(unsigned int channelId = 0, Peer* serverPeer = NULL, bool dynamicTopologyArrangement = false, uint8_t peerPercentChangeAlowed = 0,
+        		int bandwidthJoinClassB =-1 ,int bandwidthJoinClassC= -1, int bandwidthJoinClassD=-1);
 
         ChunkUniqueID GetServerNewestChunkID();
 		void SetServerNewestChunkID(ChunkUniqueID serverNewestChunkID);
@@ -61,6 +62,9 @@ class Channel
         FILE* GetOverlayFile();
         bool firstTimeOverlay;
         uint8_t peerPercentChangeAlowed;
+        int bandwidthJoinClassB;
+		int bandwidthJoinClassC;
+		int bandwidthJoinClassD;
 		
 		friend bool operator<(const Channel &a, const Channel &b) {return a.channelId<b.channelId;};
 		
